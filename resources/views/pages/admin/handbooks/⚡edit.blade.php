@@ -8,7 +8,6 @@ use App\Support\HandbookMarkdownRenderer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -374,7 +373,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
     private function existingImageByUpload(?TemporaryUploadedFile $upload): ?HandbookImage
     {
         return $this->handbook->images()
-            ->where('name', $this->originalUploadName($upload))
+            ->where('name', $this->sanitizedUploadName($upload))
             ->first();
     }
 
@@ -386,6 +385,15 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
             ->toString();
     }
 
+    private function sanitizedUploadName(?TemporaryUploadedFile $upload): string
+    {
+        if ($upload === null) {
+            return '';
+        }
+
+        return HandbookImage::sanitizedUploadName($upload);
+    }
+
     private function storeUploadedImage(
         ?TemporaryUploadedFile $upload = null,
         ?HandbookImage $existingImage = null,
@@ -394,18 +402,15 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
     {
         $upload ??= $this->imageUpload;
         $originalName = $this->originalUploadName($upload);
-        $path = $upload->storeAs("handbooks/{$this->handbook->id}/images", $originalName, 'public');
-
-        if ($existingImage !== null && $existingImage->path !== $path) {
-            Storage::disk($existingImage->disk)->delete($existingImage->path);
-        }
+        $storedName = $this->sanitizedUploadName($upload);
 
         $image = $existingImage ?? new HandbookImage();
         $image->handbook()->associate($this->handbook);
         $image->fill([
+            'handbook_id' => $this->handbook->id,
             'disk' => 'public',
-            'path' => $path,
-            'name' => $originalName,
+            'path' => $upload,
+            'name' => $storedName,
             'alt_text' => blank($altText) ? pathinfo($originalName, PATHINFO_FILENAME) : $altText,
             'mime_type' => $upload->getMimeType() ?? 'application/octet-stream',
             'size' => $upload->getSize(),

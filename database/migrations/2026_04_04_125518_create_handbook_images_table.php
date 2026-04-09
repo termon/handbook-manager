@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('handbook_id')->constrained()->cascadeOnDelete();
             $table->string('disk')->default('public');
-            $table->string('path');
+            $table->text('path');
             $table->string('name');
            
             $table->string('alt_text')->nullable();

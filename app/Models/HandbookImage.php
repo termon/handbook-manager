@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\FileUpload;
 use Database\Factories\HandbookImageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $disk
@@ -17,9 +19,10 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $alt_text
  * @property string $mime_type
  * @property int $size
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\Handbook $handbook
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Handbook $handbook
+ *
  * @method static \Database\Factories\HandbookImageFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage newQuery()
@@ -34,12 +37,25 @@ use Illuminate\Support\Facades\Storage;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage wherePath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage whereSize($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class HandbookImage extends Model
 {
     /** @use HasFactory<HandbookImageFactory> */
-    use HasFactory;
+    use FileUpload, HasFactory;
+
+    protected function fileUploads(): array
+    {
+        return [
+            'path' => [
+                'as_base64' => true,
+                // Use the entries below instead when storing handbook images on disk.
+                // 'disk' => 'public',
+                // 'folder' => "handbooks/{$this->attributes['handbook_id'] ?? $this->getRawOriginal('handbook_id')}/images",
+            ],
+        ];
+    }
 
     public function getRouteKeyName(): string
     {
@@ -56,11 +72,9 @@ class HandbookImage extends Model
         'size',
     ];
 
-    protected static function booted(): void
+    public static function sanitizedUploadName(UploadedFile $file): string
     {
-        static::deleting(function (self $image): void {
-            Storage::disk($image->disk)->delete($image->path);
-        });
+        return (new static)->sanitizeUploadedFileName($file);
     }
 
     /**
@@ -73,7 +87,7 @@ class HandbookImage extends Model
 
     public function relativeUrl(): string
     {
-        return '/storage/'.ltrim($this->path, '/');
+        return (string) $this->fileUrl('path');
     }
 
     public function markdownSnippet(): string

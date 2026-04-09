@@ -158,7 +158,12 @@
                         <img src="{{ $image->relativeUrl() }}" alt="{{ $image->alt_text ?? $image->name }}" class="size-16 rounded-2xl object-cover ring-1 ring-zinc-200 dark:ring-zinc-700" />
 
                         <div>
-                            <p class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $image->name }}</p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">{{ $image->name }}</p>
+                                <x-ui::badge variant="yellow" class="text-xs rounded-full">
+                                    {{ str_starts_with((string) $image->path, 'data:image/') ? 'B' : 'F' }}
+                                </x-ui::badge>                                  
+                            </div>
                             <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{{ $image->alt_text }}</p>
                             <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Markdown path: <code>{{ $image->name }}</code></p>
                             <p class="mt-1 text-xs uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">{{ number_format($image->size / 1024, 1) }} KB</p>
@@ -167,15 +172,22 @@
 
                     <div class="flex flex-wrap gap-3" x-data="{ copied: false }">
                         <button
+                            title="Copy markdown to clipboard"
                             type="button"
                             x-on:click="navigator.clipboard.writeText(@js($image->markdownSnippet())); copied = true; setTimeout(() => copied = false, 1500)"
-                            class="inline-flex items-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-600"
+                            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1.5 font-medium text-gray-900 transition-colors hover:bg-gray-200 hover:text-black focus:outline-none focus:ring-1 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
                         >
-                            <span x-show="! copied">Copy</span>
+                            <x-ui::svg icon="document-duplicate" class="shrink-0" />
+                            <span x-show="! copied"></span>
                             <span x-show="copied" x-cloak>Copied</span>
                         </button>
 
-                        <x-ui::button wire:click="deleteImage({{ $image->id }})" variant="red" type="button">Delete</x-ui::button>
+                        <x-ui::button 
+                            title="Delete image"
+                            wire:click="deleteImage({{ $image->id }})" 
+                            variant="red" 
+                            icon="trash" 
+                            type="button"></x-ui::button>
                     </div>
                 </div>
             @empty

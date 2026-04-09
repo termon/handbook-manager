@@ -24,7 +24,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_auth_middleware_allows_authenticated_users(): void
     {
         // Arrange
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = User::factory()->create();
         $this->actingAs($user);
 
@@ -38,7 +38,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_admin_role_functionality(): void
     {
         // Arrange
-        /** @var \App\Models\User $admin */
+        /** @var User $admin */
         $admin = User::factory()->create(['role' => Role::ADMIN]);
         $this->actingAs($admin);
 
@@ -50,7 +50,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_guest_role_functionality(): void
     {
         // Arrange
-        /** @var \App\Models\User $guest */
+        /** @var User $guest */
         $guest = User::factory()->create(['role' => Role::GUEST]);
         $this->actingAs($guest);
 
@@ -65,9 +65,11 @@ class AuthenticationSystemTest extends TestCase
         $options = Role::options();
         $this->assertIsArray($options);
         $this->assertArrayHasKey('admin', $options);
+        $this->assertArrayHasKey('author', $options);
         $this->assertArrayHasKey('user', $options);
         $this->assertArrayHasKey('guest', $options);
         $this->assertEquals('ADMIN', $options['admin']);
+        $this->assertEquals('AUTHOR', $options['author']);
         $this->assertEquals('USER', $options['user']);
         $this->assertEquals('GUEST', $options['guest']);
     }
@@ -78,15 +80,16 @@ class AuthenticationSystemTest extends TestCase
         $values = Role::values();
         $this->assertIsArray($values);
         $this->assertContains('admin', $values);
+        $this->assertContains('author', $values);
         $this->assertContains('user', $values);
         $this->assertContains('guest', $values);
-        $this->assertCount(3, $values);
+        $this->assertCount(4, $values);
     }
 
     public function test_user_model_has_correct_fillable_attributes(): void
     {
         // Arrange
-        $user = new User();
+        $user = new User;
 
         // Act & Assert
         $fillable = $user->getFillable();
@@ -99,7 +102,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_user_model_has_correct_hidden_attributes(): void
     {
         // Arrange
-        $user = new User();
+        $user = new User;
 
         // Act & Assert
         $hidden = $user->getHidden();
@@ -156,7 +159,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_authentication_session_persistence(): void
     {
         // Arrange
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = User::factory()->create();
 
         // Act
@@ -171,7 +174,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_logout_clears_authentication(): void
     {
         // Arrange
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = User::factory()->create();
         $this->actingAs($user);
         $this->assertTrue(Auth::check());
@@ -207,7 +210,7 @@ class AuthenticationSystemTest extends TestCase
     public function test_guest_route_protection(): void
     {
         // Arrange
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = User::factory()->create();
         $this->actingAs($user);
 

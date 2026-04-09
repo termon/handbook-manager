@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 trait FileUpload
 {
@@ -12,11 +13,12 @@ trait FileUpload
     ];
 
     private const DYNAMIC_SUFFIX_URL = '_url';
-    private const DYNAMIC_SUFFIX_IS_IMAGE = '_is_image';
-    private const DYNAMIC_SUFFIX_NAME = '_name';
-    private const DYNAMIC_SUFFIX_EXISTS = '_exists';
 
-    private ?array $resolvedFileUploadConfig = null;
+    private const DYNAMIC_SUFFIX_IS_IMAGE = '_is_image';
+
+    private const DYNAMIC_SUFFIX_NAME = '_name';
+
+    private const DYNAMIC_SUFFIX_EXISTS = '_exists';
 
     /**
      * Define one or many file attributes.
@@ -49,7 +51,7 @@ trait FileUpload
         $config = $this->getConfigForAttribute($attribute);
         $value = $this->attributes[$attribute] ?? null;
 
-        if (!filled($value)) {
+        if (! filled($value)) {
             return false;
         }
 
@@ -66,7 +68,7 @@ trait FileUpload
         $config = $this->getConfigForAttribute($attribute);
         $value = $this->attributes[$attribute] ?? null;
 
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -99,7 +101,7 @@ trait FileUpload
      */
     public function getAttribute($key)
     {
-        if (is_string($key) && !$this->hasConcreteAttributeOrMutator($key)) {
+        if (is_string($key) && ! $this->hasConcreteAttributeOrMutator($key)) {
             $dynamicValue = $this->resolveDynamicFileAccessor($key);
             if ($dynamicValue['matched']) {
                 return $dynamicValue['value'];
@@ -118,7 +120,7 @@ trait FileUpload
 
     protected function prepareFileAttributeForSaveUsingConfig(string $attribute, array $config): void
     {
-        if (!$this->isDirty($attribute)) {
+        if (! $this->isDirty($attribute)) {
             return;
         }
 
@@ -128,11 +130,13 @@ trait FileUpload
         if ($value === null || $value === '') {
             $this->deleteStoredFileUsingConfig($current, $config);
             $this->attributes[$attribute] = null;
+
             return;
         }
 
         if ($value instanceof UploadedFile) {
             $this->attributes[$attribute] = $this->storeUploadedFileUsingConfig($value, $current, $config);
+
             return;
         }
 
@@ -145,7 +149,7 @@ trait FileUpload
 
     protected function deleteStoredFileUsingConfig($value, array $config): void
     {
-        if (!$this->isStoredFileValue($value)) {
+        if (! $this->isStoredFileValue($value)) {
             return;
         }
 
@@ -160,15 +164,29 @@ trait FileUpload
             return $this->fileToBase64($file);
         }
 
+        if ($config['preserve_original_name']) {
+            $path = $this->buildUploadedFileStoragePath($file, $config);
+
+            if (! $config['overwrite'] && $path !== $currentValue && Storage::disk($config['disk'])->exists($path)) {
+                throw new \InvalidArgumentException("A file already exists at [{$path}].");
+            }
+
+            if ($config['overwrite'] && $path !== $currentValue) {
+                $this->deleteStoredFileUsingConfig($path, $config);
+            }
+
+            return $file->storeAs(
+                $config['folder'],
+                $this->sanitizeUploadedFileName($file),
+                $config['disk'],
+            );
+        }
+
         return $file->store($config['folder'], $config['disk']);
     }
 
     protected function resolveFileUploadConfig(): array
     {
-        if ($this->resolvedFileUploadConfig !== null) {
-            return $this->resolvedFileUploadConfig;
-        }
-
         $uploads = $this->fileUploads();
         if ($uploads === []) {
             throw new \InvalidArgumentException('FileUpload requires at least one configured attribute via fileUploads().');
@@ -190,11 +208,15 @@ trait FileUpload
                 'disk' => 'public',
                 'folder' => $this->getTable(),
                 'as_base64' => false,
+                'preserve_original_name' => true,
+                'overwrite' => true,
             ];
 
             $config = array_merge($defaults, $options);
             $config['folder'] = ($config['folder'] ?? '') !== '' ? $config['folder'] : $this->getTable();
             $config['as_base64'] = (bool) ($config['as_base64'] ?? false);
+            $config['preserve_original_name'] = (bool) ($config['preserve_original_name'] ?? true);
+            $config['overwrite'] = (bool) ($config['overwrite'] ?? true);
 
             $resolved[$attribute] = $config;
         }
@@ -203,16 +225,14 @@ trait FileUpload
             throw new \InvalidArgumentException('FileUpload could not resolve any valid attribute config from fileUploads().');
         }
 
-        $this->resolvedFileUploadConfig = $resolved;
-
-        return $this->resolvedFileUploadConfig;
+        return $resolved;
     }
 
     protected function getConfigForAttribute(string $attribute): array
     {
         $config = $this->resolveFileUploadConfig();
 
-        if (!array_key_exists($attribute, $config)) {
+        if (! array_key_exists($attribute, $config)) {
             throw new \InvalidArgumentException("FileUpload attribute [{$attribute}] is not configured.");
         }
 
@@ -252,7 +272,7 @@ trait FileUpload
             ];
 
             foreach ($suffixes as $suffix => $resolver) {
-                if ($key === $attribute . $suffix) {
+                if ($key === $attribute.$suffix) {
                     return ['matched' => true, 'value' => $resolver()];
                 }
             }
@@ -263,11 +283,11 @@ trait FileUpload
 
     protected function isBase64ImageValue($value): bool
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return false;
         }
 
-        if (!preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $value)) {
+        if (! preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/', $value)) {
             return false;
         }
 
@@ -278,11 +298,11 @@ trait FileUpload
 
     protected function isUrlValue($value): bool
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return false;
         }
 
-        if (!filter_var($value, FILTER_VALIDATE_URL)) {
+        if (! filter_var($value, FILTER_VALIDATE_URL)) {
             return false;
         }
 
@@ -295,7 +315,7 @@ trait FileUpload
     {
         $mime = $file->getMimeType();
 
-        if (!is_string($mime) || !str_starts_with($mime, 'image/')) {
+        if (! is_string($mime) || ! str_starts_with($mime, 'image/')) {
             throw new \InvalidArgumentException('Uploaded file is not an image.');
         }
 
@@ -304,12 +324,12 @@ trait FileUpload
             throw new \RuntimeException('Failed to read uploaded file contents.');
         }
 
-        return "data:{$mime};base64," . base64_encode($contents);
+        return "data:{$mime};base64,".base64_encode($contents);
     }
 
     protected function extractPathFromFileValue($value): string
     {
-        if (!is_string($value) || $value === '') {
+        if (! is_string($value) || $value === '') {
             return '';
         }
 
@@ -324,13 +344,13 @@ trait FileUpload
     {
         return is_string($value)
             && $value !== ''
-            && !$this->isBase64ImageValue($value)
-            && !$this->isUrlValue($value);
+            && ! $this->isBase64ImageValue($value)
+            && ! $this->isUrlValue($value);
     }
 
     protected function isDisplayableImageValue($value): bool
     {
-        if (!is_string($value) || $value === '') {
+        if (! is_string($value) || $value === '') {
             return false;
         }
 
@@ -346,7 +366,7 @@ trait FileUpload
 
     protected function getBase64ImageMimeType(string $base64): ?string
     {
-        if (!preg_match('/^data:(image\/[a-zA-Z0-9.+-]+);base64,/', $base64, $matches)) {
+        if (! preg_match('/^data:(image\/[a-zA-Z0-9.+-]+);base64,/', $base64, $matches)) {
             return null;
         }
 
@@ -355,7 +375,7 @@ trait FileUpload
 
     protected function deriveFileNameFromValue($value): ?string
     {
-        if (!is_string($value) || $value === '') {
+        if (! is_string($value) || $value === '') {
             return null;
         }
 
@@ -370,5 +390,43 @@ trait FileUpload
         $name = basename($path);
 
         return $name !== '' ? $name : basename($value);
+    }
+
+    protected function buildUploadedFileStoragePath(UploadedFile $file, array $config): string
+    {
+        $folder = trim((string) $config['folder'], '/');
+        $name = $this->sanitizeUploadedFileName($file);
+
+        return $folder === '' ? $name : "{$folder}/{$name}";
+    }
+
+    protected function sanitizeUploadedFileName(UploadedFile $file): string
+    {
+        $originalName = str_replace('\\', '/', $file->getClientOriginalName());
+        $originalName = basename($originalName);
+
+        $filename = pathinfo($originalName, PATHINFO_FILENAME);
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+
+        $filename = preg_replace('/[[:cntrl:]]+/u', '', $filename) ?? '';
+        $filename = preg_replace('/[^A-Za-z0-9._-]+/u', '-', $filename) ?? '';
+        $filename = trim($filename, '.-_');
+
+        $extension = preg_replace('/[^A-Za-z0-9]+/u', '', $extension) ?? '';
+        $extension = strtolower($extension);
+
+        if ($filename === '') {
+            $filename = 'file';
+        }
+
+        if ($extension === '') {
+            $guessedExtension = $file->guessExtension();
+
+            if (is_string($guessedExtension) && $guessedExtension !== '') {
+                $extension = Str::lower($guessedExtension);
+            }
+        }
+
+        return $extension === '' ? $filename : "{$filename}.{$extension}";
     }
 }

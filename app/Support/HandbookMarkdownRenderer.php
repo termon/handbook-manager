@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Handbook;
+use App\Models\HandbookImage;
 use Illuminate\Support\Str;
 
 class HandbookMarkdownRenderer
@@ -63,10 +64,32 @@ class HandbookMarkdownRenderer
     private function resolvedImageSource(Handbook $handbook, string $source): string
     {
         if ($this->isRelativeHandbookImage($source)) {
+            $image = $this->handbookImageByName($handbook, ltrim($source, '/'));
+
+            if ($image !== null) {
+                return $image->relativeUrl();
+            }
+
             return "/storage/handbooks/{$handbook->id}/images/".ltrim($source, '/');
         }
 
         return $source;
+    }
+
+    private function handbookImageByName(Handbook $handbook, string $name): ?HandbookImage
+    {
+        if ($name === '') {
+            return null;
+        }
+
+        if ($handbook->relationLoaded('images')) {
+            /** @var HandbookImage|null $image */
+            $image = $handbook->images->firstWhere('name', $name);
+
+            return $image;
+        }
+
+        return $handbook->images()->where('name', $name)->first();
     }
 
     private function isRelativeHandbookImage(string $source): bool
