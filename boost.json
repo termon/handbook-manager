@@ -1,0 +1,22 @@
+{
+    "agents": [
+        "claude_code",
+        "codex",
+        "opencode",
+        "cursor",
+        "copilot"
+    ],
+    "guidelines": true,
+    "herd_mcp": false,
+    "mcp": true,
+    "nightwatch_mcp": false,
+    "packages": [
+        "franbarbalopez/mirror"
+    ],
+    "sail": false,
+    "skills": [
+        "livewire-development",
+        "tailwindcss-development",
+        "mirror-development"
+    ]
+}
