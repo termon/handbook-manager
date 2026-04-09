@@ -14,10 +14,11 @@ return new class extends Migration
         Schema::create('handbooks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->index();
-  
+
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
+            $table->boolean('is_listed')->default(true);
             $table->timestamps();
         });
     }

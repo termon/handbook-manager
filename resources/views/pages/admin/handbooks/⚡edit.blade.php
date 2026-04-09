@@ -31,6 +31,8 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
 
     public string $ownerId = '';
 
+    public bool $isListed = true;
+
     #[Url(as: 'page')]
     public ?int $selectedPageId = null;
 
@@ -75,6 +77,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
             'handbookTitle' => ['required', 'string', 'max:255'],
             'handbookDescription' => ['nullable', 'string', 'max:2000'],
             'ownerId' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', 'author')],
+            'isListed' => ['boolean'],
         ]);
 
         $this->handbook->update([
@@ -82,6 +85,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
             'title' => $validated['handbookTitle'],
             'slug' => $this->uniqueHandbookSlug($validated['handbookTitle'], $this->handbook),
             'description' => blank($validated['handbookDescription']) ? null : $validated['handbookDescription'],
+            'is_listed' => (bool) ($validated['isListed'] ?? true),
         ]);
 
         $this->fillHandbookForm();
@@ -306,6 +310,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         $this->handbookTitle = $this->handbook->title;
         $this->handbookDescription = $this->handbook->description ?? '';
         $this->ownerId = (string) ($this->handbook->user_id ?? '');
+        $this->isListed = $this->handbook->is_listed;
     }
 
     private function nextPosition(): int
@@ -487,6 +492,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                     :can-assign-owner="$this->canAssignOwner"
                     :owners="$this->owners"
                     :owner-id="$ownerId"
+                    :is-listed="$isListed"
                 />
             @elseif ($panel === 'preview')
                 <x-admin.handbooks.edit.preview-panel

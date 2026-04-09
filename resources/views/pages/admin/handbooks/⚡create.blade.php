@@ -20,6 +20,8 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
 
     public string $ownerId = '';
 
+    public bool $isListed = true;
+
     public function mount(): void
     {
         $this->authorize('create', Handbook::class);
@@ -33,6 +35,7 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'ownerId' => ['required', 'integer', Rule::exists('users', 'id')->where('role', 'author')],
+            'isListed' => ['boolean'],
         ]);
 
         $handbook = DB::transaction(function () use ($validated): Handbook {
@@ -41,6 +44,7 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
                 'title' => $validated['title'],
                 'slug' => $this->uniqueHandbookSlug($validated['title']),
                 'description' => blank($validated['description']) ? null : $validated['description'],
+                'is_listed' => (bool) ($validated['isListed'] ?? true),
             ]);
 
             $handbook->pages()->create([
@@ -118,6 +122,17 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
                     required
                 />
                 <x-ui::form.error for="ownerId" />
+            </div>
+
+            <div class="space-y-2">
+                <label for="isListed" class="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+                    <input id="isListed" type="checkbox" wire:model="isListed" class="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500" />
+                    <span>
+                        <span class="block font-medium text-zinc-900 dark:text-zinc-50">Listed in public handbook directory</span>
+                        <span class="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">Uncheck to hide this handbook from the public index while keeping direct-link access.</span>
+                    </span>
+                </label>
+                <x-ui::form.error for="isListed" />
             </div>
 
             <x-ui::button type="submit" variant="dark">Create handbook</x-ui::button>

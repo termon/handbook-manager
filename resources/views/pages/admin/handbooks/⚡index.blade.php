@@ -105,6 +105,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                 'title' => $validated['duplicateTitle'],
                 'slug' => $this->uniqueHandbookSlug($validated['duplicateTitle']),
                 'description' => $sourceHandbook->description,
+                'is_listed' => $sourceHandbook->is_listed,
             ]);
 
             foreach ($sourceHandbook->images as $image) {

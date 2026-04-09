@@ -15,9 +15,21 @@ new #[Layout('layouts.public')] #[Title('Handbooks')] class extends Component {
             ->with(['pages' => fn ($query) => $query->orderBy('position')])
             ->orderBy('title');
 
-        if (Auth::check() && Auth::user()->isAuthor()) {
-            $query->whereBelongsTo(Auth::user(), 'owner');
+        if (Auth::check() && Auth::user()->isAdmin()) {
+            return $query->get();
         }
+
+        if (Auth::check() && Auth::user()->isAuthor()) {
+            $query->where(function ($query): void {
+                $query
+                    ->where('is_listed', true)
+                    ->orWhereBelongsTo(Auth::user(), 'owner');
+            });
+
+            return $query->get();
+        }
+
+        $query->where('is_listed', true);
 
         return $query->get();
     }

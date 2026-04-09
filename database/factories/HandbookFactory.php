@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
 use App\Models\Handbook;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -26,6 +26,14 @@ class HandbookFactory extends Factory
             'title' => $title,
             'slug' => Str::slug($title),
             'description' => fake()->sentence(),
+            'is_listed' => true,
         ];
+    }
+
+    public function unlisted(): static
+    {
+        return $this->state(fn (): array => [
+            'is_listed' => false,
+        ]);
     }
 }
