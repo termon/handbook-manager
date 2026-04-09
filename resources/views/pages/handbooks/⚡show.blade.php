@@ -3,7 +3,6 @@
 use App\Models\Handbook;
 use App\Models\HandbookPage;
 use App\Support\HandbookMarkdownRenderer;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -17,10 +16,6 @@ new #[Layout('layouts.public')] class extends Component {
     public function mount(Handbook $handbook, ?HandbookPage $page = null): void
     {
         $this->handbook = $handbook->load(['pages' => fn ($query) => $query->orderBy('position')]);
-
-        if (Auth::check() && Auth::user()->isAuthor() && $this->handbook->user_id !== Auth::id()) {
-            abort(404);
-        }
 
         $firstPage = $this->handbook->pages->first();
 
