@@ -45,6 +45,7 @@ use Mirror\Concerns\Impersonatable;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRole($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User search(?string $term, array $attributes)
  * @mixin \Eloquent
  */
 #[Fillable(['name', 'email', 'password', 'role'])]
