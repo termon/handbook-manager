@@ -215,7 +215,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
     <div class="space-y-6">
         @if (auth()->user()->isAdmin())
             <div class="flex justify-end">
-                <x-ui::link :href="route('admin.handbooks.create')" wire:navigate variant="dark">Create handbook</x-ui::link>
+                <x-ui::link :href="route('admin.handbooks.create')" wire:navigate variant="dark" icon="plus">Create</x-ui::link>
             </div>
 
             @if ($duplicateSourceHandbookId)
