@@ -1,12 +1,12 @@
 <?php
 
 use App\Models\Handbook;
+//use App\Models\HandbookPage;
 use App\Models\User;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Support\HandbookDuplicator;
+//use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+//use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -14,19 +14,29 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
-    use AuthorizesRequests;
+   // use AuthorizesRequests;
 
     public ?int $duplicateSourceHandbookId = null;
 
     public ?int $handbookPendingDeletionId = null;
 
+    public bool $handbookPendingDeletionOwnsSharedPages = false;
+
     public string $handbookPendingDeletionTitle = '';
 
     public string $duplicateTitle = '';
 
+    public string $duplicateSourceHandbookTitle = '';
+
     public string $duplicateOwnerId = '';
 
+    public int $duplicateLocalPageCount = 0;
+
+    public int $duplicateSharedPageCount = 0;
+
     public bool $showDeleteHandbookModal = false;
+
+    public string $deleteHandbookError = '';
 
     public function mount(): void
     {
@@ -39,6 +49,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
         $this->authorize('delete', $handbook);
 
         $this->handbookPendingDeletionId = $handbook->id;
+        $this->handbookPendingDeletionOwnsSharedPages = $this->handbookOwnsSharedPages($handbook);
         $this->handbookPendingDeletionTitle = $handbook->title;
         $this->showDeleteHandbookModal = true;
     }
@@ -47,8 +58,10 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
     {
         $this->reset(
             'handbookPendingDeletionId',
+            'handbookPendingDeletionOwnsSharedPages',
             'handbookPendingDeletionTitle',
             'showDeleteHandbookModal',
+            'deleteHandbookError',
         );
     }
 
@@ -56,6 +69,13 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
     {
         $handbook = Handbook::query()->findOrFail($this->handbookPendingDeletionId);
         $this->authorize('delete', $handbook);
+
+        if ($this->handbookOwnsSharedPages($handbook)) {
+            $this->deleteHandbookError = 'This handbook owns pages shared with other handbooks. Remove those shared positions before deleting the handbook.';
+
+            return;
+        }
+
         $handbook->delete();
 
         $this->cancelDeleteHandbook();
@@ -66,19 +86,31 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
         $this->authorize('create', Handbook::class);
 
         $handbook = Handbook::query()
-            ->with('owner:id')
+            ->with(['owner:id', 'positions.page'])
             ->findOrFail($handbookId);
 
         $this->duplicateSourceHandbookId = $handbook->id;
+        $this->duplicateSourceHandbookTitle = $handbook->title;
         $this->duplicateTitle = "{$handbook->title} Copy";
         $this->duplicateOwnerId = (string) ($handbook->user_id ?? '');
+        $this->duplicateLocalPageCount = $handbook->positions->filter(
+            fn ($position) => $position->page->handbook_id === $handbook->id
+        )->count();
+        $this->duplicateSharedPageCount = $handbook->positions->count() - $this->duplicateLocalPageCount;
 
         $this->resetValidation(['duplicateTitle', 'duplicateOwnerId']);
     }
 
     public function cancelDuplicate(): void
     {
-        $this->reset('duplicateSourceHandbookId', 'duplicateTitle', 'duplicateOwnerId');
+        $this->reset(
+            'duplicateSourceHandbookId',
+            'duplicateSourceHandbookTitle',
+            'duplicateTitle',
+            'duplicateOwnerId',
+            'duplicateLocalPageCount',
+            'duplicateSharedPageCount',
+        );
         $this->resetValidation(['duplicateTitle', 'duplicateOwnerId']);
     }
 
@@ -94,48 +126,16 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
 
         $sourceHandbook = Handbook::query()
             ->with([
-                'pages' => fn ($query) => $query->orderBy('position'),
+                'positions.page.handbook',
                 'images',
             ])
             ->findOrFail($validated['duplicateSourceHandbookId']);
 
-        $copiedHandbook = DB::transaction(function () use ($sourceHandbook, $validated): Handbook {
-            $copiedHandbook = Handbook::create([
-                'user_id' => (int) $validated['duplicateOwnerId'],
-                'title' => $validated['duplicateTitle'],
-                'slug' => $this->uniqueHandbookSlug($validated['duplicateTitle']),
-                'description' => $sourceHandbook->description,
-                'is_listed' => $sourceHandbook->is_listed,
-            ]);
-
-            foreach ($sourceHandbook->images as $image) {
-                $copiedPath = "handbooks/{$copiedHandbook->id}/images/{$image->name}";
-
-                if (Storage::disk($image->disk)->exists($image->path)) {
-                    Storage::disk($image->disk)->copy($image->path, $copiedPath);
-                }
-
-                $copiedHandbook->images()->create([
-                    'disk' => $image->disk,
-                    'path' => $copiedPath,
-                    'name' => $image->name,
-                    'alt_text' => $image->alt_text,
-                    'mime_type' => $image->mime_type,
-                    'size' => $image->size,
-                ]);
-            }
-
-            foreach ($sourceHandbook->pages as $page) {
-                $copiedHandbook->pages()->create([
-                    'title' => $page->title,
-                    'slug' => $this->uniquePageSlug($copiedHandbook, $page->title),
-                    'position' => $page->position,
-                    'body' => $this->copiedPageBody($page->body, $sourceHandbook, $copiedHandbook),
-                ]);
-            }
-
-            return $copiedHandbook;
-        });
+        $copiedHandbook = app(HandbookDuplicator::class)->duplicate(
+            $sourceHandbook,
+            (int) $validated['duplicateOwnerId'],
+            $validated['duplicateTitle'],
+        );
 
         $this->cancelDuplicate();
 
@@ -147,7 +147,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
     {
         $query = Handbook::query()
             ->with(['owner:id,name'])
-            ->withCount('pages')
+            ->withCount('positions')
             ->orderBy('title');
 
         if (Auth::user()->isAuthor()) {
@@ -166,41 +166,9 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
             ->get(['id', 'name']);
     }
 
-    private function uniqueHandbookSlug(string $title): string
+    private function handbookOwnsSharedPages(Handbook $handbook): bool
     {
-        $slug = Str::slug($title);
-        $suffix = 1;
-        $candidate = $slug;
-
-        while (Handbook::query()->where('slug', $candidate)->exists()) {
-            $candidate = "{$slug}-{$suffix}";
-            $suffix++;
-        }
-
-        return $candidate;
-    }
-
-    private function uniquePageSlug(Handbook $handbook, string $title): string
-    {
-        $slug = Str::slug($title);
-        $candidate = $slug;
-        $suffix = 1;
-
-        while ($handbook->pages()->where('slug', $candidate)->exists()) {
-            $candidate = "{$slug}-{$suffix}";
-            $suffix++;
-        }
-
-        return $candidate;
-    }
-
-    private function copiedPageBody(string $body, Handbook $sourceHandbook, Handbook $copiedHandbook): string
-    {
-        return str_replace(
-            "/storage/handbooks/{$sourceHandbook->id}/images/",
-            "/storage/handbooks/{$copiedHandbook->id}/images/",
-            $body,
-        );
+        return $handbook->ownsSharedPages();
     }
 }; ?>
 
@@ -228,6 +196,20 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                             <p class="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
                                 The new handbook will include copied pages, handbook images, and updated markdown image paths.
                             </p>
+                        </div>
+
+                        <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+                            <p class="font-medium text-zinc-950 dark:text-zinc-50">{{ $duplicateSourceHandbookTitle }}</p>
+                            <div class="mt-3 grid gap-3 md:grid-cols-2">
+                                <div class="rounded-2xl border border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                                    <p class="text-xs font-medium uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">Copied</p>
+                                    <p class="mt-2 text-sm">{{ $duplicateLocalPageCount }} local pages will be duplicated into the new handbook.</p>
+                                </div>
+                                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                                    <p class="text-xs font-medium uppercase tracking-[0.25em] text-amber-700 dark:text-amber-300">Linked</p>
+                                    <p class="mt-2 text-sm">{{ $duplicateSharedPageCount }} shared pages will remain linked to their source handbooks.</p>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="space-y-2">
@@ -258,7 +240,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
             @endif
         @endif
 
-        <div class="space-y-4">
+        <div class="space-y-4 grid gap-5 md:grid-cols-1 xl:grid-cols-2">
             @forelse ($this->handbooks as $handbook)
                 <article wire:key="admin-handbook-{{ $handbook->id }}" class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -272,8 +254,8 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                             </p>
                         </div>
 
-                        <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.25em] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                            {{ $handbook->pages_count }} pages
+                            <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.25em] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                            {{ $handbook->positions_count }} pages
                         </span>
                     </div>
 
@@ -312,6 +294,14 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                     <span class="font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbookPendingDeletionTitle ?: 'this handbook' }}</span>
                     and its pages and images.
                 </p>
+                @if ($handbookPendingDeletionOwnsSharedPages)
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                        Delete is blocked while this handbook owns pages shared with other handbooks. Remove those shared positions first, then try again.
+                    </div>
+                @endif
+                @if (filled($deleteHandbookError))
+                    <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $deleteHandbookError }}</p>
+                @endif
             </div>
 
             <div class="mt-6 flex justify-end gap-3">

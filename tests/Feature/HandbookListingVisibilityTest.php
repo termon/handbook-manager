@@ -96,7 +96,7 @@ class HandbookListingVisibilityTest extends TestCase
 
         $response = $this->get(route('handbooks.show', [
             'handbook' => $handbook,
-            'page' => $page,
+            'pageSlug' => $page->slug,
         ]));
 
         $response->assertOk();

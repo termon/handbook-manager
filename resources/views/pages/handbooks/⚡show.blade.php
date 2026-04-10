@@ -2,6 +2,7 @@
 
 use App\Models\Handbook;
 use App\Models\HandbookPage;
+use App\Models\HandbookPagePosition;
 use App\Support\HandbookMarkdownRenderer;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Computed;
@@ -11,25 +12,37 @@ use Livewire\Component;
 new #[Layout('layouts.public')] class extends Component {
     public Handbook $handbook;
 
+    public ?HandbookPagePosition $currentPosition = null;
+
     public ?HandbookPage $currentPage = null;
 
-    public function mount(Handbook $handbook, ?HandbookPage $page = null): void
+    public function mount(Handbook $handbook, ?string $pageSlug = null): void
     {
-        $this->handbook = $handbook->load(['pages' => fn ($query) => $query->orderBy('position')]);
+        $this->handbook = $handbook->load([
+            'positions.page.handbook.images',
+            'positions.page' => fn ($query) => $query->orderBy('position'),
+        ]);
 
-        $firstPage = $this->handbook->pages->first();
+        $firstPosition = $this->handbook->positions->first();
 
-        if ($page !== null && $page->handbook_id !== $this->handbook->id) {
-            abort(404);
-        }
-
-        if ($page === null && $firstPage !== null) {
-            $this->redirectRoute('handbooks.show', ['handbook' => $this->handbook, 'page' => $firstPage]);
+        if ($pageSlug === null && $firstPosition !== null) {
+            $this->redirectRoute('handbooks.show', [
+                'handbook' => $this->handbook,
+                'pageSlug' => $firstPosition->page->slug,
+            ]);
 
             return;
         }
 
-        $this->currentPage = $page ?? $firstPage;
+        $this->currentPosition = $this->handbook->positions
+            ->first(fn (HandbookPagePosition $position): bool => $position->page?->slug === $pageSlug);
+
+        if ($pageSlug !== null && $this->currentPosition === null) {
+            abort(404);
+        }
+
+        $this->currentPosition ??= $firstPosition;
+        $this->currentPage = $this->currentPosition?->page;
     }
 
     #[Computed]
@@ -39,7 +52,7 @@ new #[Layout('layouts.public')] class extends Component {
             return new HtmlString('');
         }
 
-        return new HtmlString(app(HandbookMarkdownRenderer::class)->render($this->handbook, $this->currentPage->body));
+        return new HtmlString(app(HandbookMarkdownRenderer::class)->render($this->handbook, $this->currentPage));
     }
 }; ?>
 
@@ -89,7 +102,7 @@ new #[Layout('layouts.public')] class extends Component {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
             </svg>
-            <a href="{{ route('home') }}" class="text-sm font-medium uppercase tracking-[0.3em] text-neutral-500 dark:text-neutral-400">All handbooks</a>
+            <a href="{{ route('handbooks.index') }}" class="text-sm font-medium uppercase tracking-[0.3em] text-neutral-500 dark:text-neutral-400">All handbooks</a>
         </div>
         <h1 class="mt-4 text-3xl font-semibold tracking-tight text-neutral-950 dark:text-neutral-50">{{ $handbook->title }}</h1>
 
@@ -98,13 +111,13 @@ new #[Layout('layouts.public')] class extends Component {
         @endif
 
         <nav class="mt-8 space-y-2">
-            @foreach ($handbook->pages as $page)
+            @foreach ($handbook->positions as $position)
                 <a
-                    href="{{ route('handbooks.show', ['handbook' => $handbook, 'page' => $page]) }}"
-                    wire:key="public-page-{{ $page->id }}"
-                    class="{{ $currentPage?->is($page) ? 'border-neutral-300 bg-neutral-900 text-white dark:border-neutral-700 dark:bg-white dark:text-neutral-950' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900' }} block rounded-2xl border px-4 py-3 text-sm font-medium transition"
+                    href="{{ route('handbooks.show', ['handbook' => $handbook, 'pageSlug' => $position->page->slug]) }}"
+                    wire:key="public-position-{{ $position->id }}"
+                    class="{{ $currentPosition?->is($position) ? 'border-neutral-300 bg-neutral-900 text-white dark:border-neutral-700 dark:bg-white dark:text-neutral-950' : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900' }} block rounded-2xl border px-4 py-3 text-sm font-medium transition"
                 >
-                    {{ $page->title }}
+                    {{ $position->page->title }}
                 </a>
             @endforeach
         </nav>

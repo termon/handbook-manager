@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Handbook;
 use App\Models\HandbookPage;
+use App\Models\HandbookPagePosition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -28,13 +29,46 @@ class HandbookViewsTest extends TestCase
 
         $response = $this->get(route('handbooks.show', [
             'handbook' => $handbook,
-            'page' => $page,
+            'pageSlug' => $page->slug,
         ]));
 
         $response->assertOk();
         $response->assertSee('Operations Handbook');
         $response->assertSee('Introduction');
         $this->assertStringNotContainsString('<flux:', $response->getContent());
+    }
+
+    public function test_public_handbook_can_render_a_page_through_a_position(): void
+    {
+        $sourceHandbook = Handbook::factory()->create([
+            'title' => 'Source Handbook',
+            'slug' => 'source-handbook',
+        ]);
+
+        $consumerHandbook = Handbook::factory()->create([
+            'title' => 'Consumer Handbook',
+            'slug' => 'consumer-handbook',
+        ]);
+
+        $page = HandbookPage::factory()->for($sourceHandbook)->create([
+            'title' => 'Shared Introduction',
+            'slug' => 'shared-introduction',
+        ]);
+
+        HandbookPagePosition::query()->create([
+            'handbook_id' => $consumerHandbook->id,
+            'handbook_page_id' => $page->id,
+            'position' => 0,
+        ]);
+
+        $response = $this->get(route('handbooks.show', [
+            'handbook' => $consumerHandbook,
+            'pageSlug' => $page->slug,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Consumer Handbook');
+        $response->assertSee('Shared Introduction');
     }
 
     public function test_admin_handbook_views_render_without_flux_markup(): void
@@ -47,7 +81,7 @@ class HandbookViewsTest extends TestCase
             'title' => 'Support Handbook',
         ]);
 
-        HandbookPage::factory()->for($handbook)->create([
+        $page = HandbookPage::factory()->for($handbook)->create([
             'title' => 'Start Here',
             'slug' => 'start-here',
         ]);

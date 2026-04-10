@@ -4,24 +4,25 @@ namespace App\Support;
 
 use App\Models\Handbook;
 use App\Models\HandbookImage;
+use App\Models\HandbookPage;
 use Illuminate\Support\Str;
 
 class HandbookMarkdownRenderer
 {
-    public function render(Handbook $handbook, string $markdown): string
+    public function render(Handbook $displayHandbook, HandbookPage $page): string
     {
-        $html = Str::markdown($markdown);
+        $html = Str::markdown($page->body);
         $html = $this->withHeadingAnchors($html);
 
         $html = preg_replace_callback(
             '/(<img\b[^>]*\ssrc=["\'])([^"\']+)(["\'][^>]*>)/i',
-            fn (array $matches): string => $matches[1].$this->resolvedImageSource($handbook, $matches[2]).$matches[3],
+            fn (array $matches): string => $matches[1].$this->resolvedImageSource($page->handbook, $matches[2]).$matches[3],
             $html,
         ) ?? $html;
 
         return preg_replace_callback(
             '/(<a\b[^>]*\shref=["\'])([^"\']+)(["\'][^>]*>)/i',
-            fn (array $matches): string => $matches[1].$this->resolvedPageHref($handbook, $matches[2]).$matches[3],
+            fn (array $matches): string => $matches[1].$this->resolvedPageHref($displayHandbook, $page, $matches[2]).$matches[3],
             $html,
         ) ?? $html;
     }
@@ -105,7 +106,7 @@ class HandbookMarkdownRenderer
         return ! str_contains($source, '../');
     }
 
-    private function resolvedPageHref(Handbook $handbook, string $href): string
+    private function resolvedPageHref(Handbook $displayHandbook, HandbookPage $page, string $href): string
     {
         if ($this->isCrossHandbookPageLinkShorthand($href)) {
             return $this->resolvedCrossHandbookHref($href);
@@ -118,9 +119,10 @@ class HandbookMarkdownRenderer
         [$pageSlug, $fragment] = array_pad(explode('#', $href, 2), 2, null);
         $pageSlug = trim($pageSlug, '/');
 
+        $resolvedHandbook = $this->relativeLinkHandbook($displayHandbook, $page, $pageSlug);
         $resolvedHref = route('handbooks.show', [
-            'handbook' => $handbook,
-            'page' => $pageSlug,
+            'handbook' => $resolvedHandbook,
+            'pageSlug' => $pageSlug,
         ], false);
 
         if (filled($fragment)) {
@@ -128,6 +130,24 @@ class HandbookMarkdownRenderer
         }
 
         return $resolvedHref;
+    }
+
+    private function relativeLinkHandbook(Handbook $displayHandbook, HandbookPage $page, string $pageSlug): Handbook
+    {
+        if ($displayHandbook->positions()
+            ->whereHas('page', fn ($query) => $query->where('slug', $pageSlug))
+            ->exists()) {
+            return $displayHandbook;
+        }
+
+        $sourceHandbook = $page->handbook;
+
+        if ($sourceHandbook->isNot($displayHandbook)
+            && $sourceHandbook->pages()->where('slug', $pageSlug)->exists()) {
+            return $sourceHandbook;
+        }
+
+        return $displayHandbook;
     }
 
     private function resolvedCrossHandbookHref(string $href): string
@@ -143,7 +163,7 @@ class HandbookMarkdownRenderer
 
         $resolvedHref = route('handbooks.show', [
             'handbook' => $handbookSlug,
-            'page' => $pageSlug,
+            'pageSlug' => $pageSlug,
         ], false);
 
         if (filled($fragment)) {

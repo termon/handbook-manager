@@ -12,7 +12,7 @@ new #[Layout('layouts.public')] #[Title('Handbooks')] class extends Component {
     public function handbooks()
     {
         $query = Handbook::query()
-            ->with(['pages' => fn ($query) => $query->orderBy('position')])
+            ->with(['positions.page' => fn ($query) => $query->orderBy('position')])
             ->orderBy('title');
 
         if (Auth::check() && Auth::user()->isAdmin()) {
@@ -39,7 +39,8 @@ new #[Layout('layouts.public')] #[Title('Handbooks')] class extends Component {
 
     <section class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         @forelse ($this->handbooks as $handbook)
-            @php($firstPage = $handbook->pages->first())
+            @php($firstPosition = $handbook->positions->first())
+            @php($firstPage = $firstPosition?->page)
 
             <article wire:key="handbook-{{ $handbook->id }}" class="flex h-full flex-col rounded-4xl border border-neutral-200 bg-white/92 p-6 shadow-[0_24px_60px_-32px_rgba(84,84,84,0.16)] backdrop-blur">
                 <div class="flex items-start justify-between gap-4">
@@ -51,13 +52,13 @@ new #[Layout('layouts.public')] #[Title('Handbooks')] class extends Component {
                     </div>
 
                     <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.25em] text-neutral-600">
-                        {{ str_pad((string) $handbook->pages->count(), 2, '0', STR_PAD_LEFT) }} pages
+                        {{ str_pad((string) $handbook->positions->count(), 2, '0', STR_PAD_LEFT) }} pages
                     </span>
                 </div>
 
                 <div class="mt-6">
                     @if ($firstPage)
-                        <a href="{{ route('handbooks.show', ['handbook' => $handbook, 'page' => $firstPage]) }}" class="inline-flex rounded-full border border-neutral-300 bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">
+                        <a href="{{ route('handbooks.show', ['handbook' => $handbook, 'pageSlug' => $firstPage->slug]) }}" class="inline-flex rounded-full border border-neutral-300 bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">
                             Open handbook
                         </a>
                     @else

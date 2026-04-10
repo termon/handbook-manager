@@ -2,13 +2,12 @@
 
 use App\Http\Controllers\HelpController;
 use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
 use App\Models\Handbook;
+use Illuminate\Support\Facades\Route;
 
 // ============= Non-authenticated routes =================
 Route::livewire('/handbooks', 'pages::handbooks.index')->name('handbooks.index');
-Route::livewire('handbooks/{handbook:slug}/{page:slug?}', 'pages::handbooks.show')
-    ->scopeBindings()
+Route::livewire('handbooks/{handbook:slug}/{pageSlug?}', 'pages::handbooks.show')
     ->name('handbooks.show');
 
 // =======Authenticated app routes=======
@@ -40,5 +39,4 @@ Route::prefix('/users')->name('users.')->middleware(['auth'])->group(function ()
 // =======Guest app routes=======
 Route::middleware('guest')->group(function () {});
 
-require __DIR__ . '/auth.php';
-
+require __DIR__.'/auth.php';

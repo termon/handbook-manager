@@ -1,6 +1,6 @@
 @props([
     'handbook',
-    'selectedPageId',
+    'selectedPositionId',
     'pageTitle',
     'previewHtml',
 ])
@@ -11,7 +11,7 @@
         <p class="text-sm text-zinc-600 dark:text-zinc-300">Preview the currently selected page rendered from markdown.</p>
     </div>
 
-    @if ($selectedPageId)
+    @if ($selectedPositionId)
         <div class="mt-6 rounded-3xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-950">
             <p class="text-sm font-medium uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">{{ $handbook->title }}</p>
             <h2 class="mt-3 text-3xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $pageTitle }}</h2>

@@ -3,6 +3,7 @@
 use App\Models\Handbook;
 use App\Models\HandbookImage;
 use App\Models\HandbookPage;
+use App\Models\HandbookPagePosition;
 use App\Models\User;
 use App\Support\HandbookMarkdownRenderer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -34,11 +35,19 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
     public bool $isListed = true;
 
     #[Url(as: 'page')]
-    public ?int $selectedPageId = null;
+    public ?int $selectedPositionId = null;
 
     public string $pageTitle = '';
 
     public string $pageBody = '';
+
+    public bool $pageIsShareable = false;
+
+    public bool $showSharedPagePicker = false;
+
+    public string $sharedPageSearch = '';
+
+    public string $selectedSharedPageId = '';
 
     public ?TemporaryUploadedFile $imageUpload = null;
 
@@ -63,10 +72,10 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         $this->panel = $this->normalizePanel($this->panel);
         $this->fillHandbookForm();
 
-        $pageId = $this->selectedPageId
-            ?? (int) $this->handbook->pages()->orderBy('position')->value('id');
+        $positionId = $this->selectedPositionId
+            ?? (int) $this->handbook->positions()->orderBy('position')->value('id');
 
-        $this->selectPage($pageId);
+        $this->selectPosition($positionId);
     }
 
     public function saveHandbook(): void
@@ -102,18 +111,71 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
             'body' => "# New Page\n\nAdd markdown content here.",
         ]);
 
-        $this->selectPage($page->id);
+        $positionId = (int) $page->positions()
+            ->where('handbook_id', $this->handbook->id)
+            ->value('id');
+
+        $this->selectPosition($positionId);
     }
 
-    public function selectPage(int $pageId): void
+    public function beginAddSharedPage(): void
+    {
+        $this->authorize('update', $this->handbook);
+
+        $this->showSharedPagePicker = true;
+        $this->sharedPageSearch = '';
+        $this->selectedSharedPageId = '';
+        $this->resetValidation(['sharedPageSearch', 'selectedSharedPageId']);
+    }
+
+    public function cancelAddSharedPage(): void
+    {
+        $this->reset('showSharedPagePicker', 'sharedPageSearch', 'selectedSharedPageId');
+        $this->resetValidation(['sharedPageSearch', 'selectedSharedPageId']);
+    }
+
+    public function attachSharedPage(): void
+    {
+        $this->authorize('update', $this->handbook);
+
+        $validated = $this->validate([
+            'selectedSharedPageId' => ['required', 'integer', 'exists:handbook_pages,id'],
+        ]);
+
+        $page = HandbookPage::query()
+            ->with('handbook')
+            ->findOrFail((int) $validated['selectedSharedPageId']);
+
+        $this->authorize('attachSharedPage', [$this->handbook, $page]);
+
+        $position = HandbookPagePosition::query()->firstOrCreate(
+            [
+                'handbook_id' => $this->handbook->id,
+                'handbook_page_id' => $page->id,
+            ],
+            [
+                'position' => $this->nextPosition(),
+            ],
+        );
+
+        $this->cancelAddSharedPage();
+        $this->selectPosition($position->id);
+    }
+
+    public function selectPosition(int $positionId): void
     {
         $this->authorize('view', $this->handbook);
 
-        $page = $this->handbook->pages()->findOrFail($pageId);
+        $position = $this->handbook->positions()
+            ->with('page.handbook')
+            ->findOrFail($positionId);
 
-        $this->selectedPageId = $page->id;
+        $page = $position->page;
+
+        $this->selectedPositionId = $position->id;
         $this->pageTitle = $page->title;
         $this->pageBody = $page->body;
+        $this->pageIsShareable = $page->is_shareable;
     }
 
     public function savePage(): void
@@ -122,18 +184,26 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
 
         $page = $this->selectedPage();
 
+        if (! $page->isEditableIn($this->handbook)) {
+            $this->addError('selectedPositionId', 'Shared pages can only be edited in their source handbook.');
+
+            return;
+        }
+
         $validated = $this->validate([
             'pageTitle' => ['required', 'string', 'max:255'],
             'pageBody' => ['required', 'string'],
+            'pageIsShareable' => ['boolean'],
         ]);
 
         $page->update([
             'title' => $validated['pageTitle'],
             'slug' => $this->uniquePageSlug($validated['pageTitle'], $page),
             'body' => $validated['pageBody'],
+            'is_shareable' => (bool) ($validated['pageIsShareable'] ?? false),
         ]);
 
-        $this->selectPage($page->id);
+        $this->selectPosition($this->selectedPositionId);
     }
 
     public function uploadImage(): void
@@ -217,54 +287,113 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         $image->delete();
     }
 
-    public function deletePage(int $pageId): void
+    public function removePosition(int $positionId): void
     {
         $this->authorize('update', $this->handbook);
 
-        if ($this->handbook->pages()->count() === 1) {
-            $this->addError('selectedPageId', 'A handbook must keep at least one page.');
+        if ($this->handbook->positions()->count() === 1) {
+            $this->addError('selectedPositionId', 'A handbook must keep at least one page.');
 
             return;
         }
 
-        $page = $this->handbook->pages()->findOrFail($pageId);
-        $page->delete();
+        $position = $this->handbook->positions()
+            ->with('page')
+            ->findOrFail($positionId);
 
-        $this->resequencePages();
-        $nextPageId = (int) $this->handbook->pages()->orderBy('position')->value('id');
+        $page = $position->page;
 
-        $this->resetErrorBag('selectedPageId');
-        $this->selectPage($nextPageId);
+        if ($page->isEditableIn($this->handbook)) {
+            if ($page->isShared()) {
+                $this->addError('selectedPositionId', 'This page is shared with other handbooks and cannot be deleted here.');
+
+                return;
+            }
+
+            $page->delete();
+        } else {
+            $position->delete();
+        }
+
+        $this->resequencePositions();
+        $nextPositionId = (int) $this->handbook->positions()->orderBy('position')->value('id');
+
+        $this->resetErrorBag('selectedPositionId');
+        $this->selectPosition($nextPositionId);
     }
 
-    public function sortPages($pageId, $position): void
+    public function sortPositions($positionId, $position): void
     {
         $this->authorize('update', $this->handbook);
 
-        $orderedIds = $this->pages->pluck('id')->reject(fn ($id) => (int) $id === (int) $pageId)->values();
-        $orderedIds->splice((int) $position, 0, [(int) $pageId]);
+        $orderedIds = $this->positions->pluck('id')->reject(fn ($id) => (int) $id === (int) $positionId)->values();
+        $orderedIds->splice((int) $position, 0, [(int) $positionId]);
 
         DB::transaction(function () use ($orderedIds): void {
             foreach ($orderedIds->values() as $index => $id) {
-                $this->handbook->pages()->whereKey($id)->update(['position' => $index]);
+                $this->handbook->positions()->whereKey($id)->update(['position' => $index]);
             }
         });
 
-        if ($this->selectedPageId !== null) {
-            $this->selectPage($this->selectedPageId);
+        if ($this->selectedPositionId !== null) {
+            $this->selectPosition($this->selectedPositionId);
         }
     }
 
     #[Computed]
-    public function pages()
+    public function positions()
     {
-        return $this->handbook->pages()->orderBy('position')->get();
+        return $this->handbook->positions()
+            ->with('page.handbook')
+            ->orderBy('position')
+            ->get();
     }
 
     #[Computed]
     public function previewHtml(): HtmlString
     {
-        return new HtmlString(app(HandbookMarkdownRenderer::class)->render($this->handbook, $this->pageBody));
+        $previewPage = new HandbookPage([
+            'handbook_id' => $this->handbook->id,
+            'title' => $this->pageTitle,
+            'slug' => Str::slug($this->pageTitle),
+            'position' => 0,
+            'body' => $this->pageBody,
+            'is_shareable' => $this->pageIsShareable,
+        ]);
+
+        $sourceHandbook = $this->selectedPage()?->handbook?->loadMissing('images') ?? $this->handbook->loadMissing('images');
+        $previewPage->setRelation('handbook', $sourceHandbook);
+
+        return new HtmlString(app(HandbookMarkdownRenderer::class)->render($this->handbook, $previewPage));
+    }
+
+    #[Computed]
+    public function shareablePages()
+    {
+        $search = trim($this->sharedPageSearch);
+
+        return HandbookPage::query()
+            ->with('handbook')
+            ->where('is_shareable', true)
+            ->when(! Auth::user()->isAdmin(), fn ($query) => $query->whereHas('handbook', fn ($handbookQuery) => $handbookQuery->where('user_id', Auth::id())))
+            ->whereDoesntHave('positions', fn ($query) => $query->where('handbook_id', $this->handbook->id))
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchTerm = "%{$search}%";
+
+                    $searchQuery
+                        ->where('title', 'like', $searchTerm)
+                        ->orWhereHas('handbook', fn ($handbookQuery) => $handbookQuery->where('title', 'like', $searchTerm));
+                });
+            })
+            ->orderBy('title')
+            ->get();
+    }
+
+    #[Computed]
+    public function selectedPageIsEditable(): bool
+    {
+        return $this->selectedPage()?->isEditableIn($this->handbook) ?? false;
     }
 
     #[Computed]
@@ -299,9 +428,20 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         ];
     }
 
-    private function selectedPage(): HandbookPage
+    private function selectedPosition(): ?HandbookPagePosition
     {
-        return $this->handbook->pages()->findOrFail($this->selectedPageId);
+        if ($this->selectedPositionId === null) {
+            return null;
+        }
+
+        return $this->handbook->positions()
+            ->with('page.handbook.images')
+            ->findOrFail($this->selectedPositionId);
+    }
+
+    private function selectedPage(): ?HandbookPage
+    {
+        return $this->selectedPosition()?->page;
     }
 
     private function fillHandbookForm(): void
@@ -315,14 +455,14 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
 
     private function nextPosition(): int
     {
-        return (int) $this->handbook->pages()->max('position') + 1;
+        return (int) $this->handbook->positions()->max('position') + 1;
     }
 
-    private function resequencePages(): void
+    private function resequencePositions(): void
     {
         DB::transaction(function (): void {
-            foreach ($this->handbook->pages()->orderBy('position')->get()->values() as $index => $page) {
-                $page->update(['position' => $index]);
+            foreach ($this->handbook->positions()->orderBy('position')->get()->values() as $index => $position) {
+                $position->update(['position' => $index]);
             }
         });
     }
@@ -471,9 +611,78 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
     <div class="grid gap-6 xl:grid-cols-[21rem_minmax(0,1fr)]">
         <aside class="space-y-6">
             <x-admin.handbooks.edit.page-list
-                :pages="$this->pages"
-                :selected-page-id="$selectedPageId"
+                :handbook="$handbook"
+                :positions="$this->positions"
+                :selected-position-id="$selectedPositionId"
             />
+
+            <div class="rounded-3xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="flex flex-wrap gap-3">
+                    <x-ui::button wire:click="createPage" variant="dark" type="button">Create page</x-ui::button>
+                    <x-ui::button wire:click="beginAddSharedPage" variant="light" type="button">Add shared</x-ui::button>
+                </div>
+
+                @if ($showSharedPagePicker)
+                    <div class="mt-4 space-y-4 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                        @if ($this->shareablePages->isNotEmpty())
+                            <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+                                Shared pages stay linked to their source handbook. You can add or remove them here, but edits still happen in the original handbook.
+                            </div>
+
+                            <div class="space-y-2">
+                                <x-ui::form.label for="sharedPageSearch">Search shareable pages</x-ui::form.label>
+                                <x-ui::form.input
+                                    wire:model.live.debounce.300ms="sharedPageSearch"
+                                    name="sharedPageSearch"
+                                    placeholder="Filter by page title or source handbook"
+                                />
+                            </div>
+
+                            <p class="text-xs font-medium uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">
+                                {{ $this->shareablePages->count() }} available
+                            </p>
+
+                            <div class="max-h-96 space-y-3 overflow-y-auto pr-1">
+                                @foreach ($this->shareablePages as $page)
+                                    <button
+                                        type="button"
+                                        wire:key="shareable-page-option-{{ $page->id }}"
+                                        wire:click="$set('selectedSharedPageId', '{{ $page->id }}')"
+                                        class="{{ $selectedSharedPageId === (string) $page->id ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-zinc-100 dark:text-zinc-950' : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-600 dark:hover:bg-zinc-800' }} block w-full rounded-2xl border p-4 text-left transition"
+                                    >
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="space-y-2">
+                                                <p class="text-sm font-semibold">{{ $page->title }}</p>
+                                                <p class="text-xs font-medium uppercase tracking-[0.25em] opacity-70">
+                                                    Source handbook: {{ $page->handbook->title }}
+                                                </p>
+                                            </div>
+
+                                            <span class="rounded-full border border-current/15 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.2em] opacity-80">
+                                                Shared
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            <x-ui::form.error for="selectedSharedPageId" />
+
+                            <div class="flex flex-wrap gap-3">
+                                <x-ui::button wire:click="attachSharedPage" variant="dark" type="button">Add shared page</x-ui::button>
+                                <x-ui::button wire:click="cancelAddSharedPage" variant="light" type="button">Cancel</x-ui::button>
+                            </div>
+                        @else
+                            <div class="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
+                                <p>
+                                    {{ blank($sharedPageSearch) ? 'No shareable pages are available to add to this handbook.' : 'No shareable pages match your search.' }}
+                                </p>
+                                <x-ui::button wire:click="cancelAddSharedPage" variant="light" type="button">Close</x-ui::button>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+            </div>
         </aside>
 
         <div class="space-y-6">
@@ -482,7 +691,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                     :handbook="$handbook"
                     :active-panel="$panel"
                     :panels="$this->availablePanels"
-                    :selected-page-id="$selectedPageId"
+                    :selected-page-id="$selectedPositionId"
                 />
             </div>
 
@@ -497,7 +706,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
             @elseif ($panel === 'preview')
                 <x-admin.handbooks.edit.preview-panel
                     :handbook="$handbook"
-                    :selected-page-id="$selectedPageId"
+                    :selected-position-id="$selectedPositionId"
                     :page-title="$pageTitle"
                     :preview-html="$this->previewHtml"
                 />
@@ -509,7 +718,12 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                     :pending-overwrite-image-name="$pendingOverwriteImageName"
                 />
             @else
-                <x-admin.handbooks.edit.editor-panel :selected-page-id="$selectedPageId" />
+                <x-admin.handbooks.edit.editor-panel
+                    :selected-page-id="$selectedPositionId"
+                    :selected-page-is-editable="$this->selectedPageIsEditable"
+                    :selected-page-source-handbook-title="$this->selectedPage()?->handbook?->title"
+                    :page-body="$pageBody"
+                />
             @endif
         </div>
     </div>

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Handbook;
 use App\Models\HandbookImage;
+use App\Models\HandbookPage;
+use App\Models\HandbookPagePosition;
 use App\Support\HandbookMarkdownRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -41,6 +43,9 @@ class HandbookImageTest extends TestCase
     public function test_handbook_markdown_renderer_replaces_image_name_with_base64_source(): void
     {
         $handbook = Handbook::factory()->create();
+        $page = HandbookPage::factory()->for($handbook)->create([
+            'body' => '![diagram](diagram.jpg)',
+        ]);
         $upload = UploadedFile::fake()->image('diagram.jpg');
 
         $image = new HandbookImage;
@@ -58,7 +63,7 @@ class HandbookImageTest extends TestCase
 
         $html = app(HandbookMarkdownRenderer::class)->render(
             $handbook->load('images'),
-            '![diagram](diagram.jpg)',
+            $page->setRelation('handbook', $handbook->load('images')),
         );
 
         $this->assertStringContainsString('src="'.$image->path.'"', $html);
@@ -69,6 +74,9 @@ class HandbookImageTest extends TestCase
         Storage::fake('public');
 
         $handbook = Handbook::factory()->create();
+        $page = HandbookPage::factory()->for($handbook)->create([
+            'body' => '![physical file](physical-file.jpg)',
+        ]);
         $upload = UploadedFile::fake()->image('physical-file.jpg');
 
         $image = new class extends HandbookImage
@@ -102,13 +110,107 @@ class HandbookImageTest extends TestCase
 
         $html = app(HandbookMarkdownRenderer::class)->render(
             $handbook->load('images'),
-            '![physical file](physical-file.jpg)',
+            $page->setRelation('handbook', $handbook->load('images')),
         );
 
         $this->assertSame("handbooks/{$handbook->id}/images/physical-file.jpg", $image->path);
         Storage::disk('public')->assertExists($image->path);
         $this->assertStringContainsString('src="/storage/'.$image->path.'"', $html);
         $this->assertSame('![physical file](physical-file.jpg)', $image->markdownSnippet());
+    }
+
+    public function test_handbook_markdown_renderer_uses_source_handbook_images_for_shared_pages(): void
+    {
+        $sourceHandbook = Handbook::factory()->create();
+        $consumerHandbook = Handbook::factory()->create();
+        $page = HandbookPage::factory()->for($sourceHandbook)->create([
+            'body' => '![diagram](diagram.jpg)',
+        ]);
+        $upload = UploadedFile::fake()->image('diagram.jpg');
+
+        $image = new HandbookImage;
+        $image->handbook()->associate($sourceHandbook);
+        $image->fill([
+            'handbook_id' => $sourceHandbook->id,
+            'disk' => 'public',
+            'path' => $upload,
+            'name' => HandbookImage::sanitizedUploadName($upload),
+            'alt_text' => 'diagram',
+            'mime_type' => $upload->getMimeType() ?? 'application/octet-stream',
+            'size' => $upload->getSize(),
+        ]);
+        $image->save();
+
+        $html = app(HandbookMarkdownRenderer::class)->render(
+            $consumerHandbook,
+            $page->setRelation('handbook', $sourceHandbook->load('images')),
+        );
+
+        $this->assertStringContainsString('src="'.$image->path.'"', $html);
+    }
+
+    public function test_handbook_markdown_renderer_prefers_display_handbook_for_relative_page_links(): void
+    {
+        $sourceHandbook = Handbook::factory()->create([
+            'slug' => 'source-handbook',
+        ]);
+        $consumerHandbook = Handbook::factory()->create([
+            'slug' => 'consumer-handbook',
+        ]);
+        $page = HandbookPage::factory()->for($sourceHandbook)->create([
+            'body' => '[Policy](policy)',
+        ]);
+        $consumerTarget = HandbookPage::factory()->for($consumerHandbook)->create([
+            'slug' => 'policy',
+        ]);
+
+        HandbookPagePosition::query()->create([
+            'handbook_id' => $consumerHandbook->id,
+            'handbook_page_id' => $page->id,
+            'position' => 1,
+        ]);
+
+        $html = app(HandbookMarkdownRenderer::class)->render(
+            $consumerHandbook,
+            $page->setRelation('handbook', $sourceHandbook),
+        );
+
+        $this->assertStringContainsString(route('handbooks.show', [
+            'handbook' => $consumerHandbook,
+            'pageSlug' => $consumerTarget->slug,
+        ], false), $html);
+    }
+
+    public function test_handbook_markdown_renderer_falls_back_to_source_handbook_for_missing_relative_page_links(): void
+    {
+        $sourceHandbook = Handbook::factory()->create([
+            'slug' => 'source-handbook',
+        ]);
+        $consumerHandbook = Handbook::factory()->create([
+            'slug' => 'consumer-handbook',
+        ]);
+        $page = HandbookPage::factory()->for($sourceHandbook)->create([
+            'body' => '[Policy](policy)',
+        ]);
+        $sourceTarget = HandbookPage::factory()->for($sourceHandbook)->create([
+            'slug' => 'policy',
+        ]);
+
+        HandbookPagePosition::query()->create([
+            'handbook_id' => $consumerHandbook->id,
+            'handbook_page_id' => $page->id,
+            'position' => 1,
+        ]);
+
+        $html = app(HandbookMarkdownRenderer::class)->render(
+            $consumerHandbook,
+            $page->setRelation('handbook', $sourceHandbook),
+        );
+
+        $this->assertStringContainsString(route('handbooks.show', [
+            'handbook' => $sourceHandbook,
+            'pageSlug' => $sourceTarget->slug,
+        ], false), $html);
     }
 
     public function test_handbook_image_delete_still_succeeds_for_base64_content(): void

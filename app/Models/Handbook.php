@@ -25,6 +25,8 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $owner
  * @property-read Collection<int, HandbookPage> $pages
  * @property-read int|null $pages_count
+ * @property-read Collection<int, HandbookPagePosition> $positions
+ * @property-read int|null $positions_count
  *
  * @method static \Database\Factories\HandbookFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook newModelQuery()
@@ -83,10 +85,25 @@ class Handbook extends Model
     }
 
     /**
+     * @return HasMany<HandbookPagePosition, $this>
+     */
+    public function positions(): HasMany
+    {
+        return $this->hasMany(HandbookPagePosition::class)->orderBy('position');
+    }
+
+    /**
      * @return HasMany<HandbookImage, $this>
      */
     public function images(): HasMany
     {
         return $this->hasMany(HandbookImage::class)->latest();
+    }
+
+    public function ownsSharedPages(): bool
+    {
+        return $this->pages()
+            ->get()
+            ->contains(fn (HandbookPage $page): bool => $page->isShared());
     }
 }
