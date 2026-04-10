@@ -77,6 +77,39 @@ class HandbookAdminEditTest extends TestCase
         $response->assertSee('Previewable Page');
     }
 
+    public function test_saving_handbook_details_redirects_to_the_updated_slug(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $handbook = Handbook::factory()->create([
+            'title' => 'Original Handbook',
+            'slug' => 'original-handbook',
+        ]);
+
+        $page = HandbookPage::factory()->for($handbook)->create([
+            'title' => 'Intro',
+            'slug' => 'intro',
+        ]);
+
+        $positionId = (int) $page->positions()
+            ->where('handbook_id', $handbook->id)
+            ->value('id');
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::admin.handbooks.edit', ['handbook' => $handbook])
+            ->set('panel', 'details')
+            ->set('selectedPositionId', $positionId)
+            ->set('handbookTitle', 'Renamed Handbook')
+            ->call('saveHandbook')
+            ->assertRedirect(route('admin.handbooks.edit', $handbook->fresh(), absolute: false).'?panel=details&page='.$positionId);
+
+        $this->assertDatabaseHas('handbooks', [
+            'id' => $handbook->id,
+            'title' => 'Renamed Handbook',
+            'slug' => 'renamed-handbook',
+        ]);
+    }
+
     public function test_admin_can_attach_a_shareable_page_to_a_handbook(): void
     {
         $admin = User::factory()->admin()->create();

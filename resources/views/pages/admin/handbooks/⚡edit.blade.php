@@ -98,6 +98,8 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         ]);
 
         $this->fillHandbookForm();
+
+        $this->redirect(route('admin.handbooks.edit', $this->handbook, absolute: false).$this->currentEditQueryString(), navigate: true);
     }
 
     public function createPage(): void
@@ -580,6 +582,20 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         return array_key_exists($panel, $this->availablePanels())
             ? $panel
             : 'editor';
+    }
+
+    private function currentEditQueryString(): string
+    {
+        $query = array_filter([
+            'panel' => $this->panel !== 'editor' ? $this->panel : null,
+            'page' => $this->selectedPositionId,
+        ], fn ($value) => filled($value));
+
+        if ($query === []) {
+            return '';
+        }
+
+        return '?'.http_build_query($query);
     }
 }; ?>
 
