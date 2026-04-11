@@ -151,13 +151,13 @@
                             @foreach ($headings as $heading)
                                 @php
                                     $indent = match ($heading['tag']) {
-                                        'h2' => 1,
-                                        'h3' => 2,
-                                        'h4' => 3,
-                                        'h5' => 4,
-                                        default => 1,
+                                        'h2' => 2,
+                                        'h3' => 4,
+                                        'h4' => 5,
+                                        'h5' => 6,
+                                        default => 0,
                                     };
-                                    $css = $heading['tag'] === 'h2' ? 'font-bold' : '';
+                                    $css = '' ; //$heading['tag'] === 'h1' ? 'font-bold' : '';
                                 @endphp
                                 <li class="text-sm {{ match ($indent) { 1 => 'ml-1', 2 => 'ml-2', 3 => 'ml-3', 4 => 'ml-4', default => 'ml-1' } }} py-1 rounded hover:bg-gray-200 dark:text-slate-100 dark:hover:bg-gray-800 {{ $css }}">
                                     <a href="#{{ $heading['id'] }}">{{ $heading['text'] }}</a>

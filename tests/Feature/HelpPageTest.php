@@ -33,6 +33,34 @@ class HelpPageTest extends TestCase
             ->assertOk()
             ->assertSee('Documentation')
             ->assertSee('Core Pages')
-            ->assertSee('Features');
+            ->assertSee('Authoring');
+    }
+
+    public function test_help_page_renders_authoring_documentation_pages(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        $overviewResponse = $this->actingAs($user)->get(route('help', [
+            'page' => 'authoring/index',
+        ]));
+
+        $imagesResponse = $this->actingAs($user)->get(route('help', [
+            'page' => 'authoring/handbook-images',
+        ]));
+
+        $overviewResponse
+            ->assertOk()
+            ->assertSeeText('Authoring Overview')
+            ->assertSeeText('Markdown editor')
+            ->assertSeeText('Copy markdown')
+            ->assertSeeText('discards unsaved');
+
+        $imagesResponse
+            ->assertOk()
+            ->assertSeeText('Handbook Images')
+            ->assertSeeText('Single image upload')
+            ->assertSeeText('Copy markdown')
+            ->assertSeeText('discarded');
     }
 }
