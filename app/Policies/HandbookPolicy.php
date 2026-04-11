@@ -52,7 +52,7 @@ class HandbookPolicy
             return false;
         }
 
-        return $this->ownsOrAdmin($user, $page->handbook);
+        return true;
     }
 
     private function ownsOrAdmin(User $user, Handbook $handbook): bool

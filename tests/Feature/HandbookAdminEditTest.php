@@ -207,7 +207,7 @@ class HandbookAdminEditTest extends TestCase
             ->assertDontSee($policyPage->title);
     }
 
-    public function test_author_cannot_attach_another_owners_shareable_page(): void
+    public function test_author_can_attach_another_owners_shareable_page(): void
     {
         $author = User::factory()->author()->create();
         $otherAuthor = User::factory()->author()->create();
@@ -229,11 +229,51 @@ class HandbookAdminEditTest extends TestCase
             ->call('beginAddSharedPage')
             ->set('selectedSharedPageId', (string) $sharedPage->id)
             ->call('attachSharedPage')
-            ->assertForbidden();
+            ->assertSet('selectedPositionId', fn ($value) => is_int($value) && $value > 0)
+            ->assertSet('pageTitle', 'Other Author Shared Page')
+            ->assertSet('pageIsShareable', true);
 
-        $this->assertDatabaseMissing('handbook_page_positions', [
+        $this->assertDatabaseHas('handbook_page_positions', [
             'handbook_id' => $consumerHandbook->id,
             'handbook_page_id' => $sharedPage->id,
         ]);
+    }
+
+    public function test_author_edit_view_lists_shared_pages_from_other_authors(): void
+    {
+        $author = User::factory()->author()->create();
+        $otherAuthor = User::factory()->author()->create();
+        $sourceHandbook = Handbook::factory()->for($otherAuthor, 'owner')->create([
+            'title' => 'Shared Source Handbook',
+        ]);
+        $consumerHandbook = Handbook::factory()->for($author, 'owner')->create([
+            'title' => 'Author Handbook',
+        ]);
+
+        HandbookPage::factory()->for($consumerHandbook)->create([
+            'title' => 'Consumer Start',
+            'slug' => 'consumer-start',
+        ]);
+
+        $sharedPage = HandbookPage::factory()->for($sourceHandbook)->create([
+            'title' => 'Shared Incident Playbook',
+            'slug' => 'shared-incident-playbook',
+            'is_shareable' => true,
+        ]);
+
+        $sharedPosition = HandbookPagePosition::query()->create([
+            'handbook_id' => $consumerHandbook->id,
+            'handbook_page_id' => $sharedPage->id,
+            'position' => 1,
+        ]);
+
+        $response = $this->actingAs($author)->get(
+            route('admin.handbooks.edit', $consumerHandbook).'?page='.$sharedPosition->id
+        );
+
+        $response->assertOk();
+        $response->assertSee('Shared Incident Playbook');
+        $response->assertSee('From Shared Source Handbook');
+        $response->assertSee("This page is shared from {$sourceHandbook->title} and can't be edited here.", false);
     }
 }

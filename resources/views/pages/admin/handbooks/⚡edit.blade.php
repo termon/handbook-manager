@@ -377,7 +377,6 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
         return HandbookPage::query()
             ->with('handbook')
             ->where('is_shareable', true)
-            ->when(! Auth::user()->isAdmin(), fn ($query) => $query->whereHas('handbook', fn ($handbookQuery) => $handbookQuery->where('user_id', Auth::id())))
             ->whereDoesntHave('positions', fn ($query) => $query->where('handbook_id', $this->handbook->id))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($searchQuery) use ($search): void {

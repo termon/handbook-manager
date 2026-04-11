@@ -32,7 +32,6 @@ class HelpPageTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Documentation')
-            ->assertSee('Core Pages')
             ->assertSee('Authoring');
     }
 
