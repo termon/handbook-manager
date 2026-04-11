@@ -32,7 +32,13 @@ class AuthenticationSystemTest extends TestCase
         $response = $this->get(route('home'));
 
         // Assert
-        $response->assertOk();
+        $response
+            ->assertOk()
+            ->assertSee('Handbook workspace')
+            ->assertSee('Browse handbook library')
+            ->assertSee('Authoring help')
+            ->assertSee(route('handbooks.index'), false)
+            ->assertSee(route('help'), false);
     }
 
     public function test_admin_role_functionality(): void
