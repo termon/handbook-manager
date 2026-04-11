@@ -8,6 +8,7 @@ use App\Models\HandbookPagePosition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Symfony\Component\DomCrawler\Crawler;
 use Tests\TestCase;
 
 class HandbookAdminEditTest extends TestCase
@@ -75,6 +76,34 @@ class HandbookAdminEditTest extends TestCase
         $response->assertOk();
         $response->assertSee('Page preview');
         $response->assertSee('Previewable Page');
+    }
+
+    public function test_images_panel_disables_upload_actions_until_files_are_ready(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $handbook = Handbook::factory()->create([
+            'title' => 'Image Handbook',
+        ]);
+
+        HandbookPage::factory()->for($handbook)->create([
+            'title' => 'Gallery',
+            'slug' => 'gallery',
+        ]);
+
+        $response = $this->actingAs($admin)->get(
+            route('admin.handbooks.edit', $handbook).'?panel=images'
+        );
+
+        $response->assertOk();
+
+        $crawler = new Crawler($response->getContent());
+
+        $singleUploadButton = $crawler->filterXPath('//button[contains(normalize-space(.), "Upload image")]')->first();
+        $multiUploadButton = $crawler->filterXPath('//button[contains(normalize-space(.), "Upload images")]')->first();
+
+        $this->assertSame('! hasSelectedFile', $singleUploadButton->attr('x-bind:disabled'));
+        $this->assertSame('imageUpload,uploadImage', $singleUploadButton->attr('wire:target'));
+        $this->assertSame('uploading || ! hasSelectedFiles()', $multiUploadButton->attr('x-bind:disabled'));
     }
 
     public function test_saving_handbook_details_redirects_to_the_updated_slug(): void

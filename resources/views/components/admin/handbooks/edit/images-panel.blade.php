@@ -1,5 +1,6 @@
 @props([
     'images',
+    'hasImageUpload' => false,
     'pendingOverwriteImageId',
     'pendingOverwriteImageName',
 ])
@@ -12,13 +13,23 @@
 
     <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         <div class="space-y-4">
-            <form wire:submit="uploadImage" class="space-y-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-950">
+            <form
+                x-data="{
+                    hasSelectedFile: {{ $hasImageUpload ? 'true' : 'false' }},
+                    syncSelectedFile(event) {
+                        this.hasSelectedFile = (event.target.files?.length ?? 0) > 0
+                    }
+                }"
+                wire:submit="uploadImage"
+                class="space-y-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-950"
+            >
                 <div class="space-y-2">
                     <label for="image-upload" class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Single image upload</label>
                     <input
                         id="image-upload"
                         type="file"
                         wire:model="imageUpload"
+                        x-on:change="syncSelectedFile($event)"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
                         class="block w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 file:me-3 file:rounded-full file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-white dark:file:text-zinc-900"
                     />
@@ -35,22 +46,40 @@
 
                 <p class="text-sm text-zinc-600 dark:text-zinc-300">Use the single-file uploader when you want overwrite confirmation or a custom alt text.</p>
 
-                <x-ui::button type="submit" variant="dark" class="w-full justify-center">Upload image</x-ui::button>
+                <x-ui::button
+                    type="submit"
+                    variant="dark"
+                    class="w-full justify-center"
+                    x-bind:disabled="! hasSelectedFile"
+                    wire:loading.attr="disabled"
+                    wire:target="imageUpload,uploadImage"
+                >
+                    Upload image
+                </x-ui::button>
             </form>
 
             <form
                 x-data="{
                     files: [],
+                    selectedFileCount: 0,
                     uploading: false,
                     progress: 0,
+                    hasSelectedFiles() {
+                        return this.selectedFileCount > 0
+                    },
+                    selectedFiles() {
+                        return this.files
+                    },
+                    syncSelectedFiles(event) {
+                        this.files = Array.from(event.target.files ?? [])
+                        this.selectedFileCount = this.files.length
+                    },
                     async uploadBatches() {
                         if (this.uploading) {
                             return
                         }
 
-                        if (this.files.length === 0) {
-                            await $wire.$call('uploadImages')
-
+                        if (! this.hasSelectedFiles()) {
                             return
                         }
 
@@ -60,11 +89,12 @@
                         try {
                             await $wire.$call('prepareMultiImageUpload')
 
+                            const files = this.selectedFiles()
                             const batches = []
                             const batchSize = 3
 
-                            for (let index = 0; index < this.files.length; index += batchSize) {
-                                batches.push(this.files.slice(index, index + batchSize))
+                            for (let index = 0; index < files.length; index += batchSize) {
+                                batches.push(files.slice(index, index + batchSize))
                             }
 
                             for (const [index, batch] of batches.entries()) {
@@ -87,6 +117,7 @@
 
                             await $wire.$call('uploadImages')
                             this.files = []
+                            this.selectedFileCount = 0
                             this.progress = 0
                             this.$refs.multiImageUpload.value = ''
                         } finally {
@@ -104,7 +135,7 @@
                         id="image-uploads"
                         type="file"
                         multiple
-                        x-on:change="files = Array.from($event.target.files)"
+                        x-on:change="syncSelectedFiles($event)"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
                         class="block w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 file:me-3 file:rounded-full file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-white dark:file:text-zinc-900"
                     />
@@ -120,7 +151,7 @@
 
                 <div x-cloak x-show="uploading" class="space-y-2">
                     <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                        Uploading <span x-text="files.length"></span> selected files in batches...
+                        Uploading <span x-text="selectedFiles().length"></span> selected files in batches...
                     </p>
                     <div class="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                         <div class="h-full rounded-full bg-zinc-900 transition-all dark:bg-zinc-100" x-bind:style="`width: ${progress}%`"></div>
@@ -131,7 +162,7 @@
                     type="submit"
                     variant="dark"
                     class="w-full"
-                    x-bind:disabled="uploading"
+                    x-bind:disabled="uploading || ! hasSelectedFiles()"
                     x-bind:aria-busy="uploading"
                 >
                     Upload images
@@ -170,8 +201,8 @@
                         </div>
                     </div>
 
-                    <div class="flex flex-wrap gap-3" x-data="{ copied: false }">
-                        <button
+                    <div class="flex flex-col gap-3" x-data="{ copied: false }">
+                        <x-ui::button
                             title="Copy markdown to clipboard"
                             type="button"
                             x-on:click="navigator.clipboard.writeText(@js($image->markdownSnippet())); copied = true; setTimeout(() => copied = false, 1500)"
@@ -180,12 +211,12 @@
                             <x-ui::svg icon="document-duplicate" class="shrink-0" />
                             <span x-show="! copied"></span>
                             <span x-show="copied" x-cloak>Copied</span>
-                        </button>
+                        </x-ui::button>
 
                         <x-ui::button 
                             title="Delete image"
                             wire:click="deleteImage({{ $image->id }})" 
-                            variant="red" 
+                            variant="ored" 
                             icon="trash" 
                             type="button"></x-ui::button>
                     </div>
