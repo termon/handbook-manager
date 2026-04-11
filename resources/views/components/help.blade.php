@@ -24,13 +24,10 @@
     @if($showPagesList)
         <!-- Help Pages List View -->
         <div class="mt-2 w-full space-y-8">
-            <section class="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 px-6 py-8 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+            <section class="rounded-2xl border border-slate-200 bg-linear-to-br from-white via-slate-50 to-blue-50 px-6 py-8 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
                 <div class="max-w-3xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700 dark:text-blue-300">Documentation</p>
-                    <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Help & Documentation</h1>
-                    <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        Start with the three core help pages, then use feature notes for implementation-specific details.
-                    </p>
+                    <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{{ env('APP_NAME', 'Help Documentation') }}</h1>        
                 </div>
             </section>
 
