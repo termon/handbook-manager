@@ -5,10 +5,20 @@ use App\Http\Controllers\UserController;
 use App\Models\Handbook;
 use Illuminate\Support\Facades\Route;
 
-// ============= Non-authenticated routes =================
-Route::livewire('/handbooks', 'pages::handbooks.index')->name('handbooks.index');
-Route::livewire('handbooks/{handbook:slug}/{pageSlug?}', 'pages::handbooks.show')
-    ->name('handbooks.show');
+// ============= Handbook routes =================
+Route::prefix('handbooks')->name('handbooks.')->group(function () {
+    Route::middleware(['auth', 'can:viewAny,'.Handbook::class])->prefix('admin')->name('admin.')->group(function () {
+        Route::livewire('/', 'pages::admin.handbooks.index')->name('index');
+        Route::livewire('create', 'pages::admin.handbooks.create')
+            ->middleware('can:create,'.Handbook::class)
+            ->name('create');
+        Route::livewire('{handbook}/edit', 'pages::admin.handbooks.edit')->name('edit');
+    });
+
+    Route::livewire('/', 'pages::handbooks.index')->name('index');
+    Route::livewire('{handbook:slug}/{pageSlug?}', 'pages::handbooks.show')
+        ->name('show');
+});
 
 // =======Authenticated app routes=======
 
@@ -18,14 +28,6 @@ Route::middleware('auth')->group(function () {
     Route::view('/contact', 'contact')->name('contact');
     Route::get('/help', [HelpController::class, 'index'])->name('help');
 });
-Route::middleware(['auth', 'can:viewAny,'.Handbook::class])->prefix('admin')->name('admin.')->group(function () {
-    Route::livewire('handbooks', 'pages::admin.handbooks.index')->name('handbooks.index');
-    Route::livewire('handbooks/create', 'pages::admin.handbooks.create')
-        ->middleware('can:create,'.Handbook::class)
-        ->name('handbooks.create');
-    Route::livewire('handbooks/{handbook}/edit', 'pages::admin.handbooks.edit')->name('handbooks.edit');
-});
-
 // =======User management routes=======
 Route::prefix('/users')->name('users.')->middleware(['auth'])->group(function () {
     Route::get('/', [UserController::class, 'index'])->name('index');

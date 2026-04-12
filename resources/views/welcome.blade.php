@@ -22,7 +22,7 @@
 
                     <div class="flex flex-wrap gap-3 pt-2">
                         @can('viewAny', App\Models\Handbook::class)
-                            <x-ui::link :href="route('admin.handbooks.index')" wire:navigate variant="dark">Open handbook manager</x-ui::link>
+                            <x-ui::link :href="route('handbooks.admin.index')" wire:navigate variant="dark">Open handbook manager</x-ui::link>
                         @endcan
 
                         <x-ui::link :href="route('handbooks.index')" variant="light">Browse handbook library</x-ui::link>
