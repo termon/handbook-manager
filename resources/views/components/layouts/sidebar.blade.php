@@ -20,12 +20,7 @@
     {{-- Primary Navigation --}}
     <x-slot:navigation>
         <x-ui::sidebar.link href="/" icon="home" label="Home" />
-        <x-ui::sidebar.link href="/admin/handbooks" icon="computer-desktop"  label="Handbooks" />
-        
-        {{-- <x-ui::sidebar.dropdown label="Information" icon="folder">
-            <x-ui::sidebar.link href="/about" icon="info" label="About Us" />
-             <x-ui::sidebar.link href="/contact" icon="mail" label="Contact Us" />      
-        </x-ui::sidebar.dropdown>       --}}
+        <x-ui::sidebar.link href="{{ route('handbooks.admin.index') }}" icon="computer-desktop"  label="Handbooks" />
     </x-slot:navigation>
 
     {{-- Secondary Navigation (Optional) --}}

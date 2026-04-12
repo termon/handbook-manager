@@ -14,7 +14,7 @@
     {{-- Top Navbar --}}
     <x-slot:navigation>
         <x-ui::navbar.link href="/" icon="home" label="Home" />
-        <x-ui::navbar.link href="/admin/handbooks" icon="cog"  label="Handbooks" />
+        <x-ui::navbar.link href="{{ route('handbooks.admin.index')  }}" icon="computer-desktop"  label="Handbooks" />
       
         {{-- <x-ui::navbar.dropdown label="Information" icon="folder">
             @can('view', App\Models\User::class)
