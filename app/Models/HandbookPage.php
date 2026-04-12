@@ -23,7 +23,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Handbook $handbook
  * @property-read Collection<int, HandbookPagePosition> $positions
- *
  * @method static \Database\Factories\HandbookPageFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPage newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPage newQuery()
@@ -37,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPage whereSlug($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPage whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPage whereUpdatedAt($value)
- *
+ * @property-read int|null $positions_count
  * @mixin \Eloquent
  */
 #[Fillable(['handbook_id', 'title', 'slug', 'position', 'body', 'is_shareable'])]

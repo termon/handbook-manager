@@ -173,13 +173,13 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
 }; ?>
 
 <section class="w-full space-y-6">
-    <div class="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+    <x-panel class="p-8">
         <p class="text-sm font-medium uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">Manage</p>
         <h1 class="mt-3 text-3xl font-semibold text-zinc-950 dark:text-zinc-50">Handbook manager</h1>
         <p class="mt-3 max-w-3xl text-sm leading-7 text-zinc-600 dark:text-zinc-300">
             Admins can manage every handbook. Authors can manage the handbooks assigned to their account, including page order and markdown content.
         </p>
-    </div>
+    </x-panel>
 
     <div class="space-y-6">
         @if (auth()->user()->isAdmin())
@@ -188,7 +188,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
             </div>
 
             @if ($duplicateSourceHandbookId)
-                <div class="max-w-2xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <x-panel class="max-w-2xl p-6">
                     <form wire:submit="duplicateHandbook" class="space-y-5">
                         <div>
                             <p class="text-sm font-medium uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">Duplicate handbook</p>
@@ -198,7 +198,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                             </p>
                         </div>
 
-                        <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+                        <x-panel.inset>
                             <p class="font-medium text-zinc-950 dark:text-zinc-50">{{ $duplicateSourceHandbookTitle }}</p>
                             <div class="mt-3 grid gap-3 md:grid-cols-2">
                                 <div class="rounded-2xl border border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
@@ -210,7 +210,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                                     <p class="mt-2 text-sm">{{ $duplicateSharedPageCount }} shared pages will remain linked to their source handbooks.</p>
                                 </div>
                             </div>
-                        </div>
+                        </x-panel.inset>
 
                         <div class="space-y-2">
                             <x-ui::form.label for="duplicateTitle">Title</x-ui::form.label>
@@ -236,13 +236,13 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                             <x-ui::button type="button" wire:click="cancelDuplicate" variant="light">Cancel</x-ui::button>
                         </div>
                     </form>
-                </div>
+                </x-panel>
             @endif
         @endif
 
         <div class="space-y-4 grid gap-5 md:grid-cols-1 xl:grid-cols-2">
             @forelse ($this->handbooks as $handbook)
-                <article wire:key="admin-handbook-{{ $handbook->id }}" class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <x-panel wire:key="admin-handbook-{{ $handbook->id }}" class="p-6">
                     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
                             <h2 class="text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbook->title }}</h2>
@@ -267,47 +267,48 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                         @endif
                         <x-ui::button wire:click="confirmDeleteHandbook({{ $handbook->id }})" type="button" variant="red">Delete</x-ui::button>
                     </div>
-                </article>
+                </x-panel>
             @empty
-                <div class="rounded-3xl border border-dashed border-zinc-300 bg-white p-8 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                <x-panel.empty class="bg-white p-8 dark:bg-zinc-900">
                     No handbooks yet.
-                </div>
+                </x-panel.empty>
             @endforelse
         </div>
     </div>
 
-    <div
-        x-data="{ open: $wire.entangle('showDeleteHandbookModal') }"
-        x-show="open"
-        x-cloak
-        x-on:keydown.escape.window="open = false; $wire.cancelDeleteHandbook()"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 px-4"
-        style="display: none;"
+    <x-ui::modal
+        name="delete-handbook-modal"
+        :show="$showDeleteHandbookModal"
+        maxWidth="lg"
+        x-effect="if (! show && $wire.showDeleteHandbookModal) { $wire.cancelDeleteHandbook() }"
     >
-        <div class="absolute inset-0" x-on:click="open = false; $wire.cancelDeleteHandbook()"></div>
+        <x-slot:title>
+            Delete handbook?
+        </x-slot:title>
 
-        <div class="relative z-10 w-full max-w-lg rounded-3xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="space-y-3">
-                <x-ui::heading level="4">Delete handbook?</x-ui::heading>
-                <p class="text-sm leading-7 text-zinc-600 dark:text-zinc-300">
-                    This will permanently delete
-                    <span class="font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbookPendingDeletionTitle ?: 'this handbook' }}</span>
-                    and its pages and images.
-                </p>
-                @if ($handbookPendingDeletionOwnsSharedPages)
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                        Delete is blocked while this handbook owns pages shared with other handbooks. Remove those shared positions first, then try again.
-                    </div>
-                @endif
-                @if (filled($deleteHandbookError))
-                    <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $deleteHandbookError }}</p>
-                @endif
-            </div>
+        <div class="space-y-3">
+            <p class="text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                This will permanently delete
+                <span class="font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbookPendingDeletionTitle ?: 'this handbook' }}</span>
+                and its pages and images.
+            </p>
 
-            <div class="mt-6 flex justify-end gap-3">
+            @if ($handbookPendingDeletionOwnsSharedPages)
+                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                    Delete is blocked while this handbook owns pages shared with other handbooks. Remove those shared positions first, then try again.
+                </div>
+            @endif
+
+            @if (filled($deleteHandbookError))
+                <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $deleteHandbookError }}</p>
+            @endif
+        </div>
+
+        <x-slot:footer>
+            <div class="flex justify-end gap-3">
                 <x-ui::button type="button" wire:click="cancelDeleteHandbook" variant="light">Cancel</x-ui::button>
                 <x-ui::button type="button" wire:click="deleteHandbook" variant="red">Delete handbook</x-ui::button>
             </div>
-        </div>
-    </div>
+        </x-slot:footer>
+    </x-ui::modal>
 </section>

@@ -27,7 +27,6 @@ use Illuminate\Support\Carbon;
  * @property-read int|null $pages_count
  * @property-read Collection<int, HandbookPagePosition> $positions
  * @property-read int|null $positions_count
- *
  * @method static \Database\Factories\HandbookFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook newQuery()
@@ -40,7 +39,6 @@ use Illuminate\Support\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook whereTitle($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Handbook whereUserId($value)
- *
  * @mixin \Eloquent
  */
 #[Fillable(['user_id', 'title', 'slug', 'description', 'is_listed'])]

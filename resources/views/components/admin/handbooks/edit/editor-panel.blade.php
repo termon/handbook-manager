@@ -2,10 +2,11 @@
     'selectedPageId' => null,
     'selectedPageIsEditable' => true,
     'selectedPageSourceHandbookTitle' => null,
+    'pageIsShareable' => false,
     'pageBody' => '',
 ])
 
-<div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+<x-panel class="p-6">
     <div class="flex flex-col gap-3 border-b border-zinc-200 pb-6 dark:border-zinc-700 md:flex-row md:items-end md:justify-between">
         <div>
             <x-ui::heading level="4">Markdown editor</x-ui::heading>
@@ -28,20 +29,17 @@
     </div>
 
     <div class="mt-6 space-y-5">
-        <div class="space-y-2">
-            <x-ui::form.label for="pageTitle">Page title</x-ui::form.label>
-            <x-ui::form.input wire:model.live="pageTitle" name="pageTitle" :disabled="! $selectedPageIsEditable" required />
-            <x-ui::form.error for="pageTitle" />
-        </div>
+        <x-ui::form.input-group wire:model.live="pageTitle" name="pageTitle" label="Page title" :disabled="! $selectedPageIsEditable" required />
 
-        <div class="space-y-2">
-            <x-ui::form.label for="pageIsShareable">Shareable page</x-ui::form.label>
-            <label class="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
-                <input type="checkbox" wire:model.live="pageIsShareable" @disabled(! $selectedPageIsEditable) class="rounded border-zinc-300 text-zinc-950 focus:ring-zinc-400 dark:border-zinc-600 dark:bg-zinc-900">
-                <span>Allow this page to be reused in other handbooks.</span>
-            </label>
-            <x-ui::form.error for="pageIsShareable" />
-        </div>
+        <x-ui::form.toggle-group
+            wire:model.live="pageIsShareable"
+            name="pageIsShareable"
+            label="Shareable page"
+            description="Allow this page to be reused in other handbooks."
+            :checked="$pageIsShareable"
+            :disabled="! $selectedPageIsEditable"
+            variant="card"
+        />
 
         @if ($selectedPageIsEditable)
             <livewire:markdown-editor
@@ -59,4 +57,4 @@
             </div>
         @endif
     </div>
-</div>
+</x-panel>

@@ -4,7 +4,7 @@
     'selectedPositionId',
 ])
 
-<div class="rounded-3xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+<x-panel class="p-4">
     <div class="flex items-center justify-between gap-3 border-b border-zinc-200 px-2 pb-4 dark:border-zinc-700">
         <div>
             <x-ui::heading level="5">Pages</x-ui::heading>
@@ -12,9 +12,9 @@
         </div>
     </div>
 
-    <div class="mx-2 mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
+    <x-panel.empty class="mx-2 mt-4 rounded-2xl p-4">
         Drag pages by the handle to reorder them. The list order is saved automatically when you drop a page.
-    </div>
+    </x-panel.empty>
 
     <div wire:sort="sortPositions" class="mt-4 space-y-3">
         @foreach ($positions as $position)
@@ -65,4 +65,4 @@
     @error('selectedPositionId')
         <p class="mt-4 text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
     @enderror
-</div>
+</x-panel>

@@ -5,7 +5,7 @@
     'pendingOverwriteImageName',
 ])
 
-<div class="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+<x-panel class="p-6">
     <div class="flex flex-col gap-2 border-b border-zinc-200 pb-6 dark:border-zinc-700">
         <x-ui::heading level="4">Handbook images</x-ui::heading>
         <p class="text-sm text-zinc-600 dark:text-zinc-300">Upload images for this handbook, then copy the markdown snippet and paste it where you want it in the page editor.</p>
@@ -15,47 +15,88 @@
         <div class="space-y-4">
             <form
                 x-data="{
-                    hasSelectedFile: {{ $hasImageUpload ? 'true' : 'false' }},
+                    selectedFile: null,
+                    uploading: false,
+                    progress: 0,
+                    hasSelectedFile() {
+                        return this.selectedFile !== null
+                    },
                     syncSelectedFile(event) {
-                        this.hasSelectedFile = (event.target.files?.length ?? 0) > 0
+                        this.selectedFile = event.target.files?.[0] ?? null
+                    },
+                    clearSelectedFile() {
+                        this.selectedFile = null
+                        this.progress = 0
+
+                        if (this.$refs.singleImageUpload) {
+                            this.$refs.singleImageUpload.value = ''
+                        }
+                    },
+                    async uploadSelectedFile() {
+                        if (this.uploading || ! this.hasSelectedFile()) {
+                            return
+                        }
+
+                        this.uploading = true
+                        this.progress = 0
+
+                        try {
+                            await new Promise((resolve, reject) => {
+                                $wire.upload(
+                                    'imageUpload',
+                                    this.selectedFile,
+                                    () => resolve(),
+                                    () => reject(),
+                                    (event) => {
+                                        this.progress = event.detail.progress
+                                    },
+                                )
+                            })
+
+                            await $wire.$call('uploadImage')
+                        } finally {
+                            this.uploading = false
+                        }
                     }
                 }"
-                wire:submit="uploadImage"
-                class="space-y-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-950"
+                x-on:submit.prevent="uploadSelectedFile"
+                x-on:single-image-upload-cleared.window="clearSelectedFile()"
+                class="space-y-4"
             >
-                <div class="space-y-2">
-                    <label for="image-upload" class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Single image upload</label>
-                    <input
-                        id="image-upload"
-                        type="file"
-                        wire:model="imageUpload"
+                <x-panel.inset class="space-y-4 rounded-3xl p-5">
+                    <x-ui::form.input-group
+                        x-ref="singleImageUpload"
                         x-on:change="syncSelectedFile($event)"
+                        id="image-upload"
+                        name="singleImageUpload"
+                        type="file"
+                        label="Single image upload"
                         accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
-                        class="block w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 file:me-3 file:rounded-full file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-white dark:file:text-zinc-900"
                     />
-                    @error('imageUpload')
-                        <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
 
-                <div class="space-y-2">
-                    <x-ui::form.label for="imageAltText">Alt text</x-ui::form.label>
-                    <x-ui::form.input wire:model="imageAltText" name="imageAltText" placeholder="Describe the image" />
-                    <x-ui::form.error for="imageAltText" />
-                </div>
+                    <x-ui::form.input-group wire:model="imageAltText" name="imageAltText" label="Alt text" placeholder="Describe the image" />
 
-                <p class="text-sm text-zinc-600 dark:text-zinc-300">Use the single-file uploader when you want overwrite confirmation or a custom alt text.</p>
+                    <p class="text-sm text-zinc-600 dark:text-zinc-300">Use the single-file uploader when you want overwrite confirmation or a custom alt text.</p>
 
-                <x-ui::button
-                    type="submit"
-                    variant="dark"
-                    class="w-full justify-center"
-                    x-bind:disabled="! hasSelectedFile"
-                    wire:loading.attr="disabled"
-                    wire:target="imageUpload,uploadImage"
-                >
-                    Upload image
-                </x-ui::button>
+                    <div x-cloak x-show="uploading" class="space-y-2">
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Uploading selected file...
+                        </p>
+                        <div class="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                            <div class="h-full rounded-full bg-zinc-900 transition-all dark:bg-zinc-100" x-bind:style="`width: ${progress}%`"></div>
+                        </div>
+                    </div>
+
+                    <x-ui::button
+                        type="submit"
+                        variant="dark"
+                        class="w-full justify-center"
+                        x-bind:disabled="uploading || ! hasSelectedFile()"
+                        x-bind:aria-busy="uploading"
+                    >
+                        Upload image
+                    </x-ui::button>
+                </x-panel.inset>
             </form>
 
             <form
@@ -126,47 +167,49 @@
                     }
                 }"
                 x-on:submit.prevent="uploadBatches"
-                class="space-y-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-950"
+                class="space-y-4"
             >
-                <div class="space-y-2">
-                    <label for="image-uploads" class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Multiple image upload</label>
-                    <input
-                        x-ref="multiImageUpload"
-                        id="image-uploads"
-                        type="file"
-                        multiple
-                        x-on:change="syncSelectedFiles($event)"
-                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
-                        class="block w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 file:me-3 file:rounded-full file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-white dark:file:text-zinc-900"
-                    />
-                    @error('imageUploads')
-                        <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-                    @error('imageUploads.*')
-                        <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <p class="text-sm text-zinc-600 dark:text-zinc-300">Batch uploads overwrite same-name files automatically, upload in small groups, and default alt text to each filename without its extension.</p>
-
-                <div x-cloak x-show="uploading" class="space-y-2">
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                        Uploading <span x-text="selectedFiles().length"></span> selected files in batches...
-                    </p>
-                    <div class="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-                        <div class="h-full rounded-full bg-zinc-900 transition-all dark:bg-zinc-100" x-bind:style="`width: ${progress}%`"></div>
+                <x-panel.inset class="space-y-4 rounded-3xl p-5">
+                    <div class="space-y-2">
+                        <x-ui::form.input-group
+                            x-ref="multiImageUpload"
+                            x-on:change="syncSelectedFiles($event)"
+                            id="image-uploads"
+                            name="multiImageUploads"
+                            type="file"
+                            label="Multiple image upload"
+                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                            multiple
+                        />
+                        @error('imageUploads')
+                            <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
+                        @enderror
+                        @error('imageUploads.*')
+                            <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $message }}</p>
+                        @enderror
                     </div>
-                </div>
 
-                <x-ui::button
-                    type="submit"
-                    variant="dark"
-                    class="w-full"
-                    x-bind:disabled="uploading || ! hasSelectedFiles()"
-                    x-bind:aria-busy="uploading"
-                >
-                    Upload images
-                </x-ui::button>
+                    <p class="text-sm text-zinc-600 dark:text-zinc-300">Batch uploads overwrite same-name files automatically, upload in small groups, and default alt text to each filename without its extension.</p>
+
+                    <div x-cloak x-show="uploading" class="space-y-2">
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Uploading <span x-text="selectedFiles().length"></span> selected files in batches...
+                        </p>
+                        <div class="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                            <div class="h-full rounded-full bg-zinc-900 transition-all dark:bg-zinc-100" x-bind:style="`width: ${progress}%`"></div>
+                        </div>
+                    </div>
+
+                    <x-ui::button
+                        type="submit"
+                        variant="dark"
+                        class="w-full"
+                        x-bind:disabled="uploading || ! hasSelectedFiles()"
+                        x-bind:aria-busy="uploading"
+                    >
+                        Upload images
+                    </x-ui::button>
+                </x-panel.inset>
             </form>
         </div>
 
@@ -205,7 +248,8 @@
                         <x-ui::button
                             title="Copy markdown to clipboard"
                             type="button"
-                            x-on:click="navigator.clipboard.writeText(@js($image->markdownSnippet())); copied = true; setTimeout(() => copied = false, 1500)"
+                            data-markdown-snippet="{{ $image->markdownSnippet() }}"
+                            x-on:click="navigator.clipboard.writeText($el.dataset.markdownSnippet); copied = true; setTimeout(() => copied = false, 1500)"
                             class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-1.5 font-medium text-gray-900 transition-colors hover:bg-gray-200 hover:text-black focus:outline-none focus:ring-1 focus:ring-gray-200 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 dark:hover:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-gray-700"
                         >
                             <x-ui::svg icon="document-duplicate" class="shrink-0" />
@@ -222,10 +266,10 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
+                <x-panel.empty>
                     No images uploaded for this handbook yet.
-                </div>
+                </x-panel.empty>
             @endforelse
         </div>
     </div>
-</div>
+</x-panel>

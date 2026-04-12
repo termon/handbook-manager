@@ -569,6 +569,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
     private function resetImageUploadState(): void
     {
         $this->reset('imageUpload', 'imageAltText', 'pendingOverwriteImageId', 'pendingOverwriteImageName');
+        $this->dispatch('single-image-upload-cleared');
     }
 
     private function resetMultiImageUploadState(): void
@@ -631,7 +632,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                 :selected-position-id="$selectedPositionId"
             />
 
-            <div class="rounded-3xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <x-panel class="p-4">
                 <div class="flex flex-wrap gap-3">
                     <x-ui::button wire:click="createPage" variant="dark" type="button">Create page</x-ui::button>
                     <x-ui::button wire:click="beginAddSharedPage" variant="light" type="button">Add shared</x-ui::button>
@@ -697,18 +698,18 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                         @endif
                     </div>
                 @endif
-            </div>
+            </x-panel>
         </aside>
 
         <div class="space-y-6">
-            <div class="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <x-panel class="p-4">
                 <x-admin.handbooks.edit.panel-nav
                     :handbook="$handbook"
                     :active-panel="$panel"
                     :panels="$this->availablePanels"
                     :selected-page-id="$selectedPositionId"
                 />
-            </div>
+            </x-panel>
 
             @if ($panel === 'details')
                 <x-admin.handbooks.edit.details-panel
@@ -737,6 +738,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
                     :selected-page-id="$selectedPositionId"
                     :selected-page-is-editable="$this->selectedPageIsEditable"
                     :selected-page-source-handbook-title="$this->selectedPage()?->handbook?->title"
+                    :page-is-shareable="$pageIsShareable"
                     :page-body="$pageBody"
                 />
             @endif

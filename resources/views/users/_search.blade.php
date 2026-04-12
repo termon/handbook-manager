@@ -1,4 +1,4 @@
-<form method="GET" :action="route('users.index')" class="form flex gap-2 items-center my-4">
+<form method="GET" action="{{ route('users.index') }}" class="form flex gap-2 items-center my-4">
     @foreach(request()->except(['search', 'page']) as $key => $value)
         <input type="hidden" name="{{ $key }}" value="{{ $value }}">
     @endforeach
