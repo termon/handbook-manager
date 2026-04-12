@@ -97,45 +97,32 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
         <x-ui::link :href="route('admin.handbooks.index')" wire:navigate variant="light">Back to handbooks</x-ui::link>
     </div>
 
-    <div class="max-w-2xl rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+    <x-panel class="max-w-2xl p-6">
         <form wire:submit="createHandbook" class="space-y-5">
-            <div class="space-y-2">
-                <x-ui::form.label for="title">Title</x-ui::form.label>
-                <x-ui::form.input wire:model="title" name="title" required />
-                <x-ui::form.error for="title" />
-            </div>
+            <x-ui::form.input-group wire:model="title" name="title" label="Title" required />
 
-            <div class="space-y-2">
-                <x-ui::form.label for="description">Description</x-ui::form.label>
-                <x-ui::form.textarea wire:model="description" name="description" rows="4" />
-                <x-ui::form.error for="description" />
-            </div>
+            <x-ui::form.textarea-group wire:model="description" name="description" label="Description" rows="4" />
 
-            <div class="space-y-2">
-                <x-ui::form.label for="ownerId">Owner</x-ui::form.label>
-                <x-ui::form.select
-                    wire:model="ownerId"
-                    name="ownerId"
-                    :options="$this->owners->pluck('name', 'id')->all()"
-                    :value="$ownerId"
-                    placeholder="Select an author"
-                    required
-                />
-                <x-ui::form.error for="ownerId" />
-            </div>
+            <x-ui::form.select-group
+                wire:model="ownerId"
+                name="ownerId"
+                label="Owner"
+                :options="$this->owners->pluck('name', 'id')->all()"
+                :value="$ownerId"
+                placeholder="Select an author"
+                required
+            />
 
-            <div class="space-y-2">
-                <label for="isListed" class="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
-                    <input id="isListed" type="checkbox" wire:model="isListed" class="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-500" />
-                    <span>
-                        <span class="block font-medium text-zinc-900 dark:text-zinc-50">Listed in public handbook directory</span>
-                        <span class="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">Uncheck to hide this handbook from the public index while keeping direct-link access.</span>
-                    </span>
-                </label>
-                <x-ui::form.error for="isListed" />
-            </div>
+            <x-ui::form.toggle-group
+                wire:model="isListed"
+                name="isListed"
+                label="Listed in public handbook directory"
+                description="Uncheck to hide this handbook from the public index while keeping direct-link access."
+                :checked="$isListed"
+                variant="card"
+            />
 
             <x-ui::button type="submit" variant="dark">Create handbook</x-ui::button>
         </form>
-    </div>
+    </x-panel>
 </section>

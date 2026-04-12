@@ -22,7 +22,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Handbook $handbook
- *
  * @method static \Database\Factories\HandbookImageFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage newQuery()
@@ -37,7 +36,8 @@ use Illuminate\Support\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage wherePath($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage whereSize($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookImage whereUpdatedAt($value)
- *
+ * @property-read array $config_for
+ * @property-read string $default_file
  * @mixin \Eloquent
  */
 class HandbookImage extends Model

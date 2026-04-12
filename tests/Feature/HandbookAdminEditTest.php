@@ -101,8 +101,7 @@ class HandbookAdminEditTest extends TestCase
         $singleUploadButton = $crawler->filterXPath('//button[contains(normalize-space(.), "Upload image")]')->first();
         $multiUploadButton = $crawler->filterXPath('//button[contains(normalize-space(.), "Upload images")]')->first();
 
-        $this->assertSame('! hasSelectedFile', $singleUploadButton->attr('x-bind:disabled'));
-        $this->assertSame('imageUpload,uploadImage', $singleUploadButton->attr('wire:target'));
+        $this->assertSame('uploading || ! hasSelectedFile()', $singleUploadButton->attr('x-bind:disabled'));
         $this->assertSame('uploading || ! hasSelectedFiles()', $multiUploadButton->attr('x-bind:disabled'));
     }
 

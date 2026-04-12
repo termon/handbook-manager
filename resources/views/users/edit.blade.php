@@ -54,5 +54,5 @@
         </form>
     </x-ui::card>
 
-</x-layouts.guest>
+</x-layouts.app>
 

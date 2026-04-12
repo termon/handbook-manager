@@ -17,7 +17,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Handbook $handbook
  * @property-read HandbookPage $page
- *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition query()
@@ -27,7 +26,6 @@ use Illuminate\Support\Carbon;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition wherePosition($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|HandbookPagePosition whereUpdatedAt($value)
- *
  * @mixin \Eloquent
  */
 #[Fillable(['handbook_id', 'handbook_page_id', 'position'])]
