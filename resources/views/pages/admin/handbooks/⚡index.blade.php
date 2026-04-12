@@ -276,39 +276,41 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
         </div>
     </div>
 
-    <x-ui::modal
-        name="delete-handbook-modal"
-        :show="$showDeleteHandbookModal"
-        maxWidth="lg"
-        x-effect="if (! show && $wire.showDeleteHandbookModal) { $wire.cancelDeleteHandbook() }"
-    >
-        <x-slot:title>
-            Delete handbook?
-        </x-slot:title>
+    @if ($showDeleteHandbookModal)
+        <x-ui::modal
+            name="delete-handbook-modal"
+            :show="$showDeleteHandbookModal"
+            maxWidth="lg"
+            x-effect="if (! show && $wire.showDeleteHandbookModal) { $wire.cancelDeleteHandbook() }"
+        >
+            <x-slot:title>
+                Delete handbook?
+            </x-slot:title>
 
-        <div class="space-y-3">
-            <p class="text-sm leading-7 text-zinc-600 dark:text-zinc-300">
-                This will permanently delete
-                <span class="font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbookPendingDeletionTitle ?: 'this handbook' }}</span>
-                and its pages and images.
-            </p>
+            <div class="space-y-3">
+                <p class="text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+                    This will permanently delete
+                    <span class="font-semibold text-zinc-950 dark:text-zinc-50">{{ $handbookPendingDeletionTitle ?: 'this handbook' }}</span>
+                    and its pages and images.
+                </p>
 
-            @if ($handbookPendingDeletionOwnsSharedPages)
-                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                    Delete is blocked while this handbook owns pages shared with other handbooks. Remove those shared positions first, then try again.
-                </div>
-            @endif
+                @if ($handbookPendingDeletionOwnsSharedPages)
+                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                        Delete is blocked while this handbook owns pages shared with other handbooks. Remove those shared positions first, then try again.
+                    </div>
+                @endif
 
-            @if (filled($deleteHandbookError))
-                <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $deleteHandbookError }}</p>
-            @endif
-        </div>
-
-        <x-slot:footer>
-            <div class="flex justify-end gap-3">
-                <x-ui::button type="button" wire:click="cancelDeleteHandbook" variant="light">Cancel</x-ui::button>
-                <x-ui::button type="button" wire:click="deleteHandbook" variant="red">Delete handbook</x-ui::button>
+                @if (filled($deleteHandbookError))
+                    <p class="text-sm font-medium text-red-600 dark:text-red-400">{{ $deleteHandbookError }}</p>
+                @endif
             </div>
-        </x-slot:footer>
-    </x-ui::modal>
+
+            <x-slot:footer>
+                <div class="flex justify-end gap-3">
+                    <x-ui::button type="button" wire:click="cancelDeleteHandbook" variant="light">Cancel</x-ui::button>
+                    <x-ui::button type="button" wire:click="deleteHandbook" variant="red">Delete handbook</x-ui::button>
+                </div>
+            </x-slot:footer>
+        </x-ui::modal>
+    @endif
 </section>

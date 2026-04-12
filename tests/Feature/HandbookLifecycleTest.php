@@ -163,4 +163,21 @@ class HandbookLifecycleTest extends TestCase
             ->call('confirmDeleteHandbook', $sourceHandbook->id)
             ->assertSee('Delete is blocked while this handbook owns pages shared with other handbooks.');
     }
+
+    public function test_delete_modal_is_only_rendered_after_confirmation(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $owner = User::factory()->author()->create();
+        $handbook = Handbook::factory()->for($owner, 'owner')->create([
+            'title' => 'Operations',
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::admin.handbooks.index')
+            ->assertDontSee('Delete handbook?')
+            ->call('confirmDeleteHandbook', $handbook->id)
+            ->assertSee('Delete handbook?')
+            ->assertSee('This will permanently delete');
+    }
 }
