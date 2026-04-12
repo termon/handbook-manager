@@ -5,6 +5,11 @@ use App\Http\Controllers\UserController;
 use App\Models\Handbook;
 use Illuminate\Support\Facades\Route;
 
+// ------------------- Home route ------------------
+Route::get('/', function () {
+    return redirect()->route('handbooks.index');
+})->name('home');
+
 // ============= Handbook routes =================
 Route::prefix('handbooks')->name('handbooks.')->group(function () {
     Route::middleware(['auth', 'can:viewAny,'.Handbook::class])->prefix('admin')->name('admin.')->group(function () {
@@ -21,9 +26,7 @@ Route::prefix('handbooks')->name('handbooks.')->group(function () {
 });
 
 // =======Authenticated app routes=======
-
 Route::middleware('auth')->group(function () {
-    Route::view('/', 'welcome')->name('home');
     Route::view('/about', 'about')->name('about');
     Route::view('/contact', 'contact')->name('contact');
     Route::get('/help', [HelpController::class, 'index'])->name('help');

@@ -12,16 +12,16 @@ class AuthenticationSystemTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guest_middleware_blocks_unauthenticated_users(): void
+    public function test_home_route_redirects_guests_to_public_handbooks_index(): void
     {
         // Arrange & Act
         $response = $this->get(route('home'));
 
         // Assert
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('handbooks.index'));
     }
 
-    public function test_auth_middleware_allows_authenticated_users(): void
+    public function test_home_route_redirects_authenticated_users_to_public_handbooks_index(): void
     {
         // Arrange
         /** @var User $user */
@@ -32,13 +32,7 @@ class AuthenticationSystemTest extends TestCase
         $response = $this->get(route('home'));
 
         // Assert
-        $response
-            ->assertOk()
-            ->assertSee('Handbook workspace')
-            ->assertSee('Browse handbook library')
-            ->assertSee('Authoring help')
-            ->assertSee(route('handbooks.index'), false)
-            ->assertSee(route('help'), false);
+        $response->assertRedirect(route('handbooks.index'));
     }
 
     public function test_admin_role_functionality(): void
@@ -197,7 +191,6 @@ class AuthenticationSystemTest extends TestCase
     {
         // Arrange
         $protectedRoutes = [
-            'home',
             'about',
             'contact',
             'help',
