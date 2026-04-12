@@ -57,7 +57,7 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
             return $handbook;
         });
 
-        $this->redirect(route('admin.handbooks.edit', $handbook, absolute: false), navigate: true);
+        $this->redirect(route('handbooks.admin.edit', $handbook, absolute: false), navigate: true);
     }
 
     #[Computed]
@@ -94,7 +94,7 @@ new #[Layout('layouts.app')] #[Title('Create handbook')] class extends Component
             </p>
         </div>
 
-        <x-ui::link :href="route('admin.handbooks.index')" wire:navigate variant="light">Back to handbooks</x-ui::link>
+        <x-ui::link :href="route('handbooks.admin.index')" wire:navigate variant="light">Back to handbooks</x-ui::link>
     </div>
 
     <x-panel class="max-w-2xl p-6">

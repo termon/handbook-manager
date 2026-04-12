@@ -139,7 +139,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
 
         $this->cancelDuplicate();
 
-        $this->redirect(route('admin.handbooks.edit', $copiedHandbook, absolute: false), navigate: true);
+        $this->redirect(route('handbooks.admin.edit', $copiedHandbook, absolute: false), navigate: true);
     }
 
     #[Computed]
@@ -184,7 +184,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
     <div class="space-y-6">
         @if (auth()->user()->isAdmin())
             <div class="flex justify-end">
-                <x-ui::link :href="route('admin.handbooks.create')" wire:navigate variant="dark" icon="plus">Create</x-ui::link>
+                <x-ui::link :href="route('handbooks.admin.create')" wire:navigate variant="dark" icon="plus">Create</x-ui::link>
             </div>
 
             @if ($duplicateSourceHandbookId)
@@ -260,7 +260,7 @@ new #[Layout('layouts.app')] #[Title('Handbooks')] class extends Component {
                     </div>
 
                     <div class="mt-6 flex flex-wrap gap-3">
-                        <x-ui::link :href="route('admin.handbooks.edit', $handbook)" wire:navigate variant="dark">Edit</x-ui::link>
+                        <x-ui::link :href="route('handbooks.admin.edit', $handbook)" wire:navigate variant="dark">Edit</x-ui::link>
                         <x-ui::link :href="route('handbooks.show', ['handbook' => $handbook])" variant="light">View</x-ui::link>
                         @if (auth()->user()->isAdmin())
                             <x-ui::button wire:click="beginDuplicate({{ $handbook->id }})" type="button" variant="light">Copy</x-ui::button>

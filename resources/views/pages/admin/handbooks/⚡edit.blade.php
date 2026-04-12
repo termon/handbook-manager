@@ -99,7 +99,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
 
         $this->fillHandbookForm();
 
-        $this->redirect(route('admin.handbooks.edit', $this->handbook, absolute: false).$this->currentEditQueryString(), navigate: true);
+        $this->redirect(route('handbooks.admin.edit', $this->handbook, absolute: false).$this->currentEditQueryString(), navigate: true);
     }
 
     public function createPage(): void
@@ -620,7 +620,7 @@ new #[Layout('layouts.app')] #[Title('Edit handbook')] class extends Component {
 
         <div class="flex flex-wrap gap-3">
             <x-ui::link :href="route('handbooks.show', ['handbook' => $handbook])" icon="eye" variant="light">View</x-ui::link>
-            <x-ui::link :href="route('admin.handbooks.index')" icon="arrow-left" wire:navigate variant="light">Handbooks</x-ui::link>
+            <x-ui::link :href="route('handbooks.admin.index')" icon="arrow-left" wire:navigate variant="light">Handbooks</x-ui::link>
         </div>
     </div>
 

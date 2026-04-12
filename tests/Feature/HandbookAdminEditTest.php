@@ -43,7 +43,7 @@ class HandbookAdminEditTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->get(
-            route('admin.handbooks.edit', $consumerHandbook).'?page='.$sharedPosition->id
+            route('handbooks.admin.edit', $consumerHandbook).'?page='.$sharedPosition->id
         );
 
         $response->assertOk();
@@ -70,7 +70,7 @@ class HandbookAdminEditTest extends TestCase
             ->value('id');
 
         $response = $this->actingAs($admin)->get(
-            route('admin.handbooks.edit', $handbook).'?panel=preview&page='.$positionId
+            route('handbooks.admin.edit', $handbook).'?panel=preview&page='.$positionId
         );
 
         $response->assertOk();
@@ -91,7 +91,7 @@ class HandbookAdminEditTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->get(
-            route('admin.handbooks.edit', $handbook).'?panel=images'
+            route('handbooks.admin.edit', $handbook).'?panel=images'
         );
 
         $response->assertOk();
@@ -129,7 +129,7 @@ class HandbookAdminEditTest extends TestCase
             ->set('selectedPositionId', $positionId)
             ->set('handbookTitle', 'Renamed Handbook')
             ->call('saveHandbook')
-            ->assertRedirect(route('admin.handbooks.edit', $handbook->fresh(), absolute: false).'?panel=details&page='.$positionId);
+            ->assertRedirect(route('handbooks.admin.edit', $handbook->fresh(), absolute: false).'?panel=details&page='.$positionId);
 
         $this->assertDatabaseHas('handbooks', [
             'id' => $handbook->id,
@@ -267,7 +267,7 @@ class HandbookAdminEditTest extends TestCase
         ]);
 
         $response = $this->actingAs($author)->get(
-            route('admin.handbooks.edit', $consumerHandbook).'?page='.$sharedPosition->id
+            route('handbooks.admin.edit', $consumerHandbook).'?page='.$sharedPosition->id
         );
 
         $response->assertOk();

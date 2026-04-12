@@ -86,10 +86,10 @@ class HandbookViewsTest extends TestCase
             'slug' => 'start-here',
         ]);
 
-        $createResponse = $this->actingAs($admin)->get(route('admin.handbooks.create'));
-        $indexResponse = $this->actingAs($admin)->get(route('admin.handbooks.index'));
-        $editResponse = $this->actingAs($admin)->get(route('admin.handbooks.edit', $handbook));
-        $detailsResponse = $this->actingAs($admin)->get(route('admin.handbooks.edit', $handbook).'?panel=details');
+        $createResponse = $this->actingAs($admin)->get(route('handbooks.admin.create'));
+        $indexResponse = $this->actingAs($admin)->get(route('handbooks.admin.index'));
+        $editResponse = $this->actingAs($admin)->get(route('handbooks.admin.edit', $handbook));
+        $detailsResponse = $this->actingAs($admin)->get(route('handbooks.admin.edit', $handbook).'?panel=details');
 
         $createResponse->assertOk();
         $createResponse->assertSee('Create handbook');

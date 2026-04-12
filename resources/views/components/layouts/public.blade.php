@@ -45,7 +45,7 @@
 
                 <div class="flex items-center gap-3">
                     @auth
-                        <a href="{{ route('admin.handbooks.index') }}"
+                        <a href="{{ route('handbooks.admin.index') }}"
                             class="rounded-full border border-neutral-300 bg-white/85 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:border-neutral-400 hover:bg-white dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:border-neutral-600 dark:hover:bg-neutral-800">
                             Manage handbooks
                         </a>
