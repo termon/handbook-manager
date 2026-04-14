@@ -6,6 +6,7 @@ use App\Models\Handbook;
 use App\Models\HandbookPagePosition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class HandbookDuplicator
 {
@@ -27,14 +28,15 @@ class HandbookDuplicator
 
             foreach ($sourceHandbook->images as $image) {
                 $copiedPath = "handbooks/{$copiedHandbook->id}/images/{$image->name}";
+                $copiedImagePath = $this->isStoredImagePath($image->path) ? $copiedPath : $image->path;
 
-                if (Storage::disk($image->disk)->exists($image->path)) {
+                if ($this->isStoredImagePath($image->path) && Storage::disk($image->disk)->exists($image->path)) {
                     Storage::disk($image->disk)->copy($image->path, $copiedPath);
                 }
 
                 $copiedHandbook->images()->create([
                     'disk' => $image->disk,
-                    'path' => $copiedPath,
+                    'path' => $copiedImagePath,
                     'name' => $image->name,
                     'alt_text' => $image->alt_text,
                     'mime_type' => $image->mime_type,
@@ -107,5 +109,14 @@ class HandbookDuplicator
             "/storage/handbooks/{$copiedHandbook->id}/images/",
             $body,
         );
+    }
+
+    private function isStoredImagePath(string $path): bool
+    {
+        if (Str::startsWith($path, 'data:')) {
+            return false;
+        }
+
+        return filter_var($path, FILTER_VALIDATE_URL) === false;
     }
 }

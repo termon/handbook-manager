@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Handbook;
+use App\Models\HandbookImage;
 use App\Models\HandbookPage;
 use App\Models\HandbookPagePosition;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -66,6 +68,56 @@ class HandbookLifecycleTest extends TestCase
             'position' => 1,
         ]);
         $this->assertSame(1, HandbookPage::query()->where('handbook_id', $copiedHandbook->id)->count());
+    }
+
+    public function test_duplicate_handbook_preserves_base64_images(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $owner = User::factory()->author()->create();
+        $sourceHandbook = Handbook::factory()->for($owner, 'owner')->create([
+            'title' => 'Operations',
+        ]);
+        $upload = UploadedFile::fake()->image('diagram.jpg');
+
+        $image = new HandbookImage;
+        $image->handbook()->associate($sourceHandbook);
+        $image->fill([
+            'handbook_id' => $sourceHandbook->id,
+            'disk' => 'public',
+            'path' => $upload,
+            'name' => HandbookImage::sanitizedUploadName($upload),
+            'alt_text' => 'diagram',
+            'mime_type' => $upload->getMimeType() ?? 'application/octet-stream',
+            'size' => $upload->getSize(),
+        ]);
+        $image->save();
+
+        HandbookPage::factory()->for($sourceHandbook)->create([
+            'title' => 'Local Page',
+            'slug' => 'local-page',
+            'body' => '![Diagram](diagram.jpg)',
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test('pages::admin.handbooks.index')
+            ->call('beginDuplicate', $sourceHandbook->id)
+            ->set('duplicateTitle', 'Operations Copy')
+            ->set('duplicateOwnerId', (string) $owner->id)
+            ->call('duplicateHandbook');
+
+        $copiedHandbook = Handbook::query()->where('title', 'Operations Copy')->firstOrFail();
+        $copiedImage = $copiedHandbook->images()->where('name', 'diagram.jpg')->first();
+        $copiedPage = HandbookPage::query()
+            ->where('handbook_id', $copiedHandbook->id)
+            ->where('title', 'Local Page')
+            ->first();
+
+        $this->assertNotNull($copiedImage);
+        $this->assertStringStartsWith('data:image/', $copiedImage->path);
+        $this->assertSame($image->path, $copiedImage->path);
+        $this->assertNotNull($copiedPage);
+        $this->assertSame('![Diagram](diagram.jpg)', $copiedPage->body);
     }
 
     public function test_delete_handbook_is_blocked_when_it_owns_pages_shared_elsewhere(): void
