@@ -40,7 +40,7 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('home', absolute: false));
+        return redirect()->intended(route('handbooks.admin.index', absolute: false));
     }
 
     public function destroy(Request $request): RedirectResponse
